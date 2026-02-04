@@ -15,7 +15,7 @@ const messages = {
     heroBody:
       "アイコンパレットから配置し、ボックスやテキスト、矢印で構成した後にJSONとして保存できます。",
     heroAction: "エディターを開く",
-    editorTitle: "デザインキャンバス",
+    editorTitle: "エディタビュー",
     editorSubtitle:
       "キャンバスをドラッグして要素を配置し、保存・エクスポートできます。",
     panelPaletteTitle: "アイコンパレット",
@@ -115,7 +115,7 @@ const messages = {
     heroBody:
       "Place icons, boxes, text, and arrows, then save the diagram as JSON.",
     heroAction: "Open editor",
-    editorTitle: "Design canvas",
+    editorTitle: "Editor View",
     editorSubtitle:
       "Drag elements onto the canvas and save or export the result.",
     panelPaletteTitle: "Icon palette",

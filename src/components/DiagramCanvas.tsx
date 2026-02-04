@@ -9,6 +9,11 @@ interface DiagramCanvasProps {
   emptyMessage: string;
   onSelect: (id: string | null) => void;
   onUpdate: (id: string, updates: Partial<DiagramElement>) => void;
+  onOpenContextMenu?: (args: {
+    elementId: string;
+    clientX: number;
+    clientY: number;
+  }) => void;
 }
 
 const getElementStyle = (element: DiagramElement) => {
@@ -110,12 +115,14 @@ const Draggable = ({
   selected,
   onSelect,
   onUpdate,
+  onOpenContextMenu,
   children,
 }: {
   element: DiagramElement;
   selected: boolean;
   onSelect: () => void;
   onUpdate: (updates: Partial<DiagramElement>) => void;
+  onOpenContextMenu?: (args: { clientX: number; clientY: number }) => void;
   children: React.ReactNode;
 }) => {
   const [dragging, setDragging] = useState(false);
@@ -152,6 +159,12 @@ const Draggable = ({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onSelect();
+        onOpenContextMenu?.({ clientX: event.clientX, clientY: event.clientY });
+      }}
     >
       {children}
     </div>
@@ -164,6 +177,7 @@ export default function DiagramCanvas({
   emptyMessage,
   onSelect,
   onUpdate,
+  onOpenContextMenu,
 }: DiagramCanvasProps) {
   return (
     <div
@@ -184,6 +198,16 @@ export default function DiagramCanvas({
                 event.stopPropagation();
                 onSelect(element.id);
               }}
+              onContextMenu={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onSelect(element.id);
+                onOpenContextMenu?.({
+                  elementId: element.id,
+                  clientX: event.clientX,
+                  clientY: event.clientY,
+                });
+              }}
             >
               <Arrow element={element} />
             </div>
@@ -197,6 +221,9 @@ export default function DiagramCanvas({
             selected={selectedId === element.id}
             onSelect={() => onSelect(element.id)}
             onUpdate={(updates) => onUpdate(element.id, updates)}
+            onOpenContextMenu={(args) =>
+              onOpenContextMenu?.({ elementId: element.id, ...args })
+            }
           >
             {element.type === "icon" && (
               <div className="flex h-full w-full flex-col items-center justify-center gap-2">
