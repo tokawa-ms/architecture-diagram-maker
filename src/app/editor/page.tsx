@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import DiagramCanvas from "@/components/DiagramCanvas";
@@ -123,6 +123,11 @@ export default function EditorPage() {
     createEmptyDocument(messages.defaultDiagramName),
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    elementId: string;
+    left: number;
+    top: number;
+  } | null>(null);
   const navItems = [
     { href: "/", label: messages.navHome },
     { href: "/editor", label: messages.navEditor },
@@ -139,6 +144,39 @@ export default function EditorPage() {
 
   const selectedElement =
     diagram.elements.find((element) => element.id === selectedId) ?? null;
+
+  const inspectorLabels = useMemo(
+    () => ({
+      title: messages.panelPropertiesTitle,
+      hint: messages.inspectorHint,
+      noSelection: messages.noSelection,
+      propertyName: messages.propertyName,
+      propertyFill: messages.propertyFill,
+      propertyBorder: messages.propertyBorder,
+      propertyText: messages.propertyText,
+      propertySize: messages.propertySize,
+      propertyWidth: messages.propertyWidth,
+      propertyHeight: messages.propertyHeight,
+      propertyOpacity: messages.propertyOpacity,
+      propertyStroke: messages.propertyStroke,
+      propertyStrokeWidth: messages.propertyStrokeWidth,
+      propertyFontSize: messages.propertyFontSize,
+      propertyRadius: messages.propertyRadius,
+      propertyArrowStyle: messages.propertyArrowStyle,
+    }),
+    [messages],
+  );
+
+  useEffect(() => {
+    if (!contextMenu) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setContextMenu(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [contextMenu]);
 
 
   const updateDocument = (updates: Partial<DiagramDocument>) => {
@@ -263,6 +301,21 @@ export default function EditorPage() {
     link.click();
   };
 
+  const clampContextMenuPosition = (args: { clientX: number; clientY: number }) => {
+    const margin = 10;
+    const menuWidth = 360;
+    const maxHeightRatio = 0.7;
+    const maxLeft = Math.max(margin, window.innerWidth - menuWidth - margin);
+    const maxTop = Math.max(
+      margin,
+      window.innerHeight - window.innerHeight * maxHeightRatio - margin,
+    );
+    return {
+      left: Math.min(Math.max(args.clientX, margin), maxLeft),
+      top: Math.min(Math.max(args.clientY, margin), maxTop),
+    };
+  };
+
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader
@@ -273,16 +326,13 @@ export default function EditorPage() {
         tagline={messages.tagline}
       />
       <main className="flex-1 bg-slate-50">
-        <section className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-10">
+        <section className="mx-[10px] flex flex-col gap-6 px-0 py-10">
           <div>
             <h1 className="text-2xl font-semibold text-slate-900">
               {messages.editorTitle}
             </h1>
-            <p className="mt-2 text-sm text-slate-500">
-              {messages.editorSubtitle}
-            </p>
           </div>
-          <div className="grid gap-6 lg:grid-cols-[320px_1fr_320px]">
+          <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
             <div className="flex flex-col gap-6">
               <DiagramPalette
                 title={messages.panelPaletteTitle}
@@ -324,49 +374,6 @@ export default function EditorPage() {
                 onExportJson={handleExportJson}
                 onLoadSample={handleLoadSample}
               />
-            </div>
-            <div className="space-y-4">
-              <div id="diagram-canvas">
-                <DiagramCanvas
-                  elements={[...diagram.elements].sort(
-                    (a, b) => a.zIndex - b.zIndex,
-                  )}
-                  selectedId={selectedId}
-                  emptyMessage={messages.canvasEmpty}
-                  onSelect={setSelectedId}
-                  onUpdate={handleUpdateElement}
-                />
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-white p-4 text-xs text-slate-500">
-                {messages.panelStorageHint}
-              </div>
-            </div>
-            <div className="flex flex-col gap-6">
-              <DiagramInspector
-                selected={selectedElement}
-                labels={{
-                  title: messages.panelPropertiesTitle,
-                  hint: messages.inspectorHint,
-                  noSelection: messages.noSelection,
-                  propertyName: messages.propertyName,
-                  propertyFill: messages.propertyFill,
-                  propertyBorder: messages.propertyBorder,
-                  propertyText: messages.propertyText,
-                  propertySize: messages.propertySize,
-                  propertyWidth: messages.propertyWidth,
-                  propertyHeight: messages.propertyHeight,
-                  propertyOpacity: messages.propertyOpacity,
-                  propertyStroke: messages.propertyStroke,
-                  propertyStrokeWidth: messages.propertyStrokeWidth,
-                  propertyFontSize: messages.propertyFontSize,
-                  propertyRadius: messages.propertyRadius,
-                  propertyArrowStyle: messages.propertyArrowStyle,
-                }}
-                onUpdate={(updates) => {
-                  if (!selectedElement) return;
-                  handleUpdateElement(selectedElement.id, updates);
-                }}
-              />
               <DiagramStoragePanel
                 title={messages.panelStorageTitle}
                 hint={messages.panelStorageHint}
@@ -395,10 +402,56 @@ export default function EditorPage() {
                 {messages.toolSave}
               </button>
             </div>
+            <div className="space-y-4">
+              <div id="diagram-canvas">
+                <DiagramCanvas
+                  elements={[...diagram.elements].sort(
+                    (a, b) => a.zIndex - b.zIndex,
+                  )}
+                  selectedId={selectedId}
+                  emptyMessage={messages.canvasEmpty}
+                  onSelect={setSelectedId}
+                  onUpdate={handleUpdateElement}
+                  onOpenContextMenu={(args) => {
+                    const position = clampContextMenuPosition(args);
+                    setSelectedId(args.elementId);
+                    setContextMenu({ elementId: args.elementId, ...position });
+                  }}
+                />
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 text-xs text-slate-500">
+                {messages.panelStorageHint}
+              </div>
+            </div>
           </div>
         </section>
       </main>
       <SiteFooter text={messages.footerText} />
+
+      {contextMenu && selectedElement && selectedElement.id === contextMenu.elementId && (
+        <div
+          className="fixed inset-0 z-50"
+          onPointerDown={() => setContextMenu(null)}
+          onContextMenu={(event) => {
+            event.preventDefault();
+            setContextMenu(null);
+          }}
+        >
+          <div
+            className="absolute w-[360px] max-h-[70vh] overflow-auto"
+            style={{ left: contextMenu.left, top: contextMenu.top }}
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            <DiagramInspector
+              selected={selectedElement}
+              labels={inspectorLabels}
+              onUpdate={(updates) => {
+                handleUpdateElement(selectedElement.id, updates);
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
