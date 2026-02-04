@@ -1,97 +1,60 @@
-# nodejs-app-template
+# Architecture Diagram Maker
 
 日本語 | [English](README-en.md)
 
 ## 概要
 
-このリポジトリは、**Next.js + TypeScript + Tailwind CSS** を用いたアプリを **単一コンテナー** でホストし、**Azure Container Apps** にデプロイできる構成を生成するための **テンプレート** です。
-Copilot 用の指示ファイル [.github/copilot-instructions.md](.github/copilot-instructions.md) が含まれており、プロジェクト要件（MPA、Azure 連携、Docker、README など）を満たす実装を生成できるように設計されています。
+アーキテクチャダイアグラムを素早く作成し、JSON 形式で保存できる軽量エディターです。まずは UI とローカルストレージ保存にフォーカスし、将来的に Azure Cosmos DB などの保存先を追加する前提で設計しています。
 
-## 想定ユースケース
+## 主な機能
 
-- Next.js (App Router) による **MPA** を作りたい
-- フロントと API を **同一プロセス** で提供したい
-- Azure SDK を使った **Azure サービス連携** を組み込みたい
-- **Azure Container Apps** に 1 コンテナーでデプロイしたい
+- アイコンパレットから配置（`public/icons` に配置したアイコンを利用する想定）
+- ボックス、テキスト、矢印、ラインの作成
+- Z-Order 操作（前面/背面）と複製・削除
+- ローカルストレージへの JSON 保存・読み込み
+- PNG / JSON 形式でエクスポート
 
-## テンプレートの使い方（Copilot で生成）
+## ローカル実行
 
-1. 本リポジトリをクローンする
-2. Copilot に以下のような依頼を行う
-
-例:
-
-- 「copilot-instructions.md に従い、Next.js + Tailwind の初期構成と複数ページ、API ルートを作成して」
-- 「Azure Cosmos DB に接続する `/api/items` を実装して」
-- 「Dockerfile と README を整備して」
-
-## 生成される想定構成（例）
-
-```
-src/
-	app/           # Next.js pages (App Router)
-	app/api/       # API routes
-	components/    # UI コンポーネント
-	lib/azure/     # Azure 接続
-	lib/config/    # 環境変数の検証
-public/
-Dockerfile
-.dockerignore
-.env.template
-README.md
-README-en.md
-```
-
-## 必要な環境
-
-- Node.js 20 LTS 以上
-- Docker
-- （推奨）Azure CLI (ローカル開発時に `DefaultAzureCredential` を使う場合)
-
-## ローカル実行（生成後のアプリ）
-
-1. 環境変数テンプレートを作成
+1. 環境変数ファイルを作成します。
 
 ```
 cp .env.template .env
 ```
 
-2. 依存関係をインストール
+2. 依存関係をインストールします。
 
 ```
 npm install
 ```
 
-3. 開発サーバー起動
+3. 開発サーバーを起動します。
 
 ```
 npm run dev
 ```
 
-## Docker 実行（生成後のアプリ）
+`http://localhost:3000/editor` からエディターにアクセスできます。
+
+## Docker での実行
 
 ```
-docker build -t my-app .
-docker run --rm -p 3000:3000 -e PORT=3000 my-app
+docker build -t architecture-diagram-maker .
+docker run --rm -p 3000:3000 -e PORT=3000 architecture-diagram-maker
 ```
+
+ヘルスチェックは `/api/health` を利用します。
 
 ## Azure Container Apps へのデプロイ概要
 
-以下は一般的な流れの概要です。実際の手順は生成される README に記載します。
+1. Azure Container Apps 環境と Log Analytics ワークスペースを用意します。
+2. コンテナイメージをビルドして Azure Container Registry に push します。
+3. Container Apps を作成し、`PORT` 環境変数を設定します。
 
-1. Azure リソースの準備（Container Apps 環境、ログ基盤、必要な Azure サービス）
-2. イメージのビルドとレジストリへの push
-3. Container Apps へのデプロイ（Ingress 設定、環境変数の設定）
+## Azure サービスとの連携について
 
-## このテンプレートが前提とする Azure サービス（例）
+現在はローカルストレージ保存のみを実装しています。将来的に Azure Cosmos DB などへ保存する際は、`/api/diagrams` を通じて Azure SDK を利用する設計に拡張する予定です。
 
-- Azure Container Apps（ホスティング）
-- Azure Cosmos DB（データ永続化）
-- Azure Storage（必要に応じて）
-- Azure Key Vault / App Configuration（設定・シークレット）
-- Application Insights（ログ・監視）
+## 多言語対応
 
-## 備考
-
-- このリポジトリ自体は **テンプレート** のため、アプリ本体は含まれません。
-- 具体的な実装は Copilot によって生成されます。
+ヘッダーの言語ドロップダウンから日本語/英語を切り替えできます。URL パラメータ `?lang=ja` / `?lang=en` で保持します。
