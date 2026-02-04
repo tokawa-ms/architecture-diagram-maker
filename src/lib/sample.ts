@@ -29,7 +29,7 @@ export const createSampleDiagram = (labels: SampleLabels): DiagramDocument => {
       rotation: 0,
       zIndex: 2,
       opacity: 1,
-      src: "/icons/azure.svg",
+      src: "/icons-sample/azure.svg",
       label: labels.apiGateway,
     },
     {
@@ -58,7 +58,7 @@ export const createSampleDiagram = (labels: SampleLabels): DiagramDocument => {
       rotation: 0,
       zIndex: 3,
       opacity: 1,
-      src: "/icons/logic-apps.svg",
+      src: "/icons-sample/logic-apps.svg",
       label: labels.logicApps,
     },
     {

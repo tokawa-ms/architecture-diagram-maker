@@ -98,7 +98,7 @@ const createElement = (
         type: "icon",
         width: 80,
         height: 80,
-        src: "/icons/azure.svg",
+        src: "/icons-sample/azure.svg",
         label: labels.icon,
       };
   }
@@ -126,6 +126,7 @@ export default function EditorPage() {
     createEmptyDocument(messages.defaultDiagramName),
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [storageModalOpen, setStorageModalOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<{
     elementId: string;
     left: number;
@@ -180,6 +181,17 @@ export default function EditorPage() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [contextMenu]);
+
+  useEffect(() => {
+    if (!storageModalOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setStorageModalOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [storageModalOpen]);
 
 
   const updateDocument = (updates: Partial<DiagramDocument>) => {
@@ -368,21 +380,13 @@ export default function EditorPage() {
       />
       <main className="flex-1 bg-slate-50">
         <section className="mx-[10px] flex flex-col gap-6 px-0 py-10">
-          <div>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <h1 className="text-2xl font-semibold text-slate-900">
               {messages.editorTitle}
             </h1>
-          </div>
-          <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-            <div className="flex flex-col gap-6">
-              <DiagramPalette
-                title={messages.panelPaletteTitle}
-                searchLabel={messages.panelPaletteSearch}
-                hint={messages.paletteHint}
-                emptyLabel={messages.paletteEmpty}
-                onSelect={handlePaletteSelect}
-              />
+            <div className="lg:max-w-[calc(100%-220px)]">
               <DiagramTools
+                variant="toolbar"
                 labels={{
                   title: messages.panelToolsTitle,
                   toolBox: messages.toolBox,
@@ -394,6 +398,8 @@ export default function EditorPage() {
                   toolArrowSolidDouble: messages.toolArrowSolidDouble,
                   toolArrowDashedDouble: messages.toolArrowDashedDouble,
                   toolClear: messages.toolClear,
+                  toolCanvasMenu: messages.toolCanvasMenu,
+                  toolExportMenu: messages.toolExportMenu,
                   toolExport: messages.toolExport,
                   toolExportJson: messages.toolExportJson,
                   toolSave: messages.toolSave,
@@ -416,32 +422,26 @@ export default function EditorPage() {
                 onExportJson={handleExportJson}
                 onLoadSample={handleLoadSample}
               />
-              <DiagramStoragePanel
-                title={messages.panelStorageTitle}
-                hint={messages.panelStorageHint}
-                labels={{
-                  storageKeyLabel: messages.storageKeyLabel,
-                  storageSavedAt: messages.storageSavedAt,
-                  storageActionLabel: messages.storageActionLabel,
-                  storageLoad: messages.storageLoad,
-                  storageOverwrite: messages.storageOverwrite,
-                  storageNew: messages.storageNew,
-                  storageDelete: messages.storageDelete,
-                  storageImport: messages.storageImport,
-                  storageExport: messages.storageExport,
-                  storageCopy: messages.storageCopy,
-                  storageCopied: messages.storageCopied,
-                  empty: messages.storageEmpty,
-                }}
-                current={diagram}
-                onLoad={(doc) => setDiagram(doc)}
+            </div>
+          </div>
+          <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
+            <div className="flex flex-col gap-6">
+              <DiagramPalette
+                title={messages.panelPaletteTitle}
+                searchLabel={messages.panelPaletteSearch}
+                hint={messages.paletteHint}
+                emptyLabel={messages.paletteEmpty}
+                onSelect={handlePaletteSelect}
               />
               <button
                 type="button"
                 className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900"
-                onClick={handleSave}
+                onClick={() => {
+                  setContextMenu(null);
+                  setStorageModalOpen(true);
+                }}
               >
-                {messages.toolSave}
+                {messages.storageMenuButton}
               </button>
             </div>
             <div className="space-y-4">
@@ -469,6 +469,63 @@ export default function EditorPage() {
         </section>
       </main>
       <SiteFooter text={messages.footerText} />
+
+      {storageModalOpen && (
+        <div
+          className="fixed inset-0 z-[60] bg-slate-900/30 p-[10px]"
+          role="dialog"
+          aria-modal="true"
+          aria-label={messages.storageMenuButton}
+          onPointerDown={() => setStorageModalOpen(false)}
+        >
+          <div className="mx-auto w-full max-w-3xl" onPointerDown={(event) => event.stopPropagation()}>
+            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-slate-900">
+                  {messages.storageMenuButton}
+                </h2>
+                <button
+                  type="button"
+                  className="rounded-md border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900"
+                  onClick={() => setStorageModalOpen(false)}
+                >
+                  {messages.modalClose}
+                </button>
+              </div>
+
+              <div className="mt-4 grid gap-4">
+                <DiagramStoragePanel
+                  title={messages.panelStorageTitle}
+                  hint={messages.panelStorageHint}
+                  labels={{
+                    storageKeyLabel: messages.storageKeyLabel,
+                    storageSavedAt: messages.storageSavedAt,
+                    storageActionLabel: messages.storageActionLabel,
+                    storageLoad: messages.storageLoad,
+                    storageOverwrite: messages.storageOverwrite,
+                    storageNew: messages.storageNew,
+                    storageDelete: messages.storageDelete,
+                    storageImport: messages.storageImport,
+                    storageExport: messages.storageExport,
+                    storageCopy: messages.storageCopy,
+                    storageCopied: messages.storageCopied,
+                    empty: messages.storageEmpty,
+                  }}
+                  current={diagram}
+                  onLoad={(doc) => setDiagram(doc)}
+                />
+                <button
+                  type="button"
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900"
+                  onClick={handleSave}
+                >
+                  {messages.toolSave}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {contextMenu && selectedElement && selectedElement.id === contextMenu.elementId && (
         <div

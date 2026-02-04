@@ -332,6 +332,12 @@ const Draggable = ({
     event.preventDefault();
     event.stopPropagation();
     onSelect();
+
+    // Only start dragging for primary button.
+    // (Right click is used for the context menu.)
+    if (event.button !== 0) return;
+
+    event.currentTarget.setPointerCapture(event.pointerId);
     setDragging(true);
     setOrigin({ x: event.clientX - element.x, y: event.clientY - element.y });
   };
@@ -343,8 +349,13 @@ const Draggable = ({
     onUpdate({ x: event.clientX - origin.x, y: event.clientY - origin.y });
   };
 
-  const handlePointerUp = () => {
+  const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
     setDragging(false);
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      // no-op
+    }
   };
 
   const isResizable =
@@ -429,6 +440,7 @@ const Draggable = ({
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
       onPointerLeave={handlePointerUp}
       onContextMenu={(event) => {
         event.preventDefault();
@@ -485,7 +497,7 @@ export default function DiagramCanvas({
 }: DiagramCanvasProps) {
   return (
     <div
-      className="relative h-[520px] w-full rounded-2xl border border-dashed border-slate-300 bg-white shadow-inner"
+      className="relative isolate z-0 h-[520px] w-full rounded-2xl border border-dashed border-slate-300 bg-white shadow-inner"
       onPointerDown={() => onSelect(null)}
     >
       {elements.length === 0 && (
