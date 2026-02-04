@@ -12,6 +12,7 @@ import { useLanguage } from "@/components/useLanguage";
 import { createSampleDiagram } from "@/lib/sample";
 import { getMessages } from "@/lib/i18n";
 import type {
+  ArrowEnds,
   ArrowStyle,
   DiagramElement,
   DiagramElementType,
@@ -38,6 +39,7 @@ const createElement = (
     icon: string;
   },
   style?: ArrowStyle,
+  arrowEnds?: ArrowEnds,
 ): DiagramElement => {
   const base = {
     id: `${type}-${Date.now()}`,
@@ -78,6 +80,7 @@ const createElement = (
         stroke: "#0F172A",
         strokeWidth: 2,
         style: style ?? "solid",
+        arrowEnds: arrowEnds ?? "end",
       };
     case "line":
       return {
@@ -187,9 +190,13 @@ export default function EditorPage() {
     }));
   };
 
-  const handleAddElement = (type: DiagramElementType, style?: ArrowStyle) => {
+  const handleAddElement = (
+    type: DiagramElementType,
+    style?: ArrowStyle,
+    ends?: ArrowEnds,
+  ) => {
     console.log("Adding element", type);
-    const element = createElement(type, defaultLabels, style);
+    const element = createElement(type, defaultLabels, style, ends);
     updateDocument({ elements: [...diagram.elements, element] });
     setSelectedId(element.id);
   };
@@ -229,16 +236,50 @@ export default function EditorPage() {
     setSelectedId(null);
   };
 
+  const reorderZIndex = (
+    elements: DiagramElement[],
+    elementId: string,
+    direction: "front" | "back",
+  ) => {
+    const decorated = elements
+      .map((element, index) => ({ element, index }))
+      .sort((a, b) => {
+        const diff = a.element.zIndex - b.element.zIndex;
+        return diff !== 0 ? diff : a.index - b.index;
+      });
+
+    const currentIndex = decorated.findIndex((item) => item.element.id === elementId);
+    if (currentIndex === -1) return elements;
+
+    const [picked] = decorated.splice(currentIndex, 1);
+    if (direction === "front") {
+      decorated.push(picked);
+    } else {
+      decorated.unshift(picked);
+    }
+
+    const nextZById = new Map(
+      decorated.map((item, index) => [item.element.id, index + 1]),
+    );
+
+    return elements.map((element) => ({
+      ...element,
+      zIndex: nextZById.get(element.id) ?? element.zIndex,
+    }));
+  };
+
   const handleBringFront = () => {
     if (!selectedElement) return;
-    const maxZ = Math.max(...diagram.elements.map((element) => element.zIndex));
-    handleUpdateElement(selectedElement.id, { zIndex: maxZ + 1 });
+    updateDocument({
+      elements: reorderZIndex(diagram.elements, selectedElement.id, "front"),
+    });
   };
 
   const handleSendBack = () => {
     if (!selectedElement) return;
-    const minZ = Math.min(...diagram.elements.map((element) => element.zIndex));
-    handleUpdateElement(selectedElement.id, { zIndex: minZ - 1 });
+    updateDocument({
+      elements: reorderZIndex(diagram.elements, selectedElement.id, "back"),
+    });
   };
 
   const handleDuplicate = () => {
@@ -346,11 +387,12 @@ export default function EditorPage() {
                   title: messages.panelToolsTitle,
                   toolBox: messages.toolBox,
                   toolText: messages.toolText,
-                  toolArrow: messages.toolArrow,
-                  toolLine: messages.toolLine,
-                  toolArrowSolid: messages.toolArrowSolid,
-                  toolArrowDashed: messages.toolArrowDashed,
-                  toolArrowDotted: messages.toolArrowDotted,
+                  toolLineSolid: messages.toolLineSolid,
+                  toolLineDashed: messages.toolLineDashed,
+                  toolArrowSolidSingle: messages.toolArrowSolidSingle,
+                  toolArrowDashedSingle: messages.toolArrowDashedSingle,
+                  toolArrowSolidDouble: messages.toolArrowSolidDouble,
+                  toolArrowDashedDouble: messages.toolArrowDashedDouble,
                   toolClear: messages.toolClear,
                   toolExport: messages.toolExport,
                   toolExportJson: messages.toolExportJson,
@@ -442,6 +484,36 @@ export default function EditorPage() {
             style={{ left: contextMenu.left, top: contextMenu.top }}
             onPointerDown={(event) => event.stopPropagation()}
           >
+            <div className="mb-2 grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900"
+                onClick={() => {
+                  handleBringFront();
+                }}
+              >
+                {messages.toolBringFront}
+              </button>
+              <button
+                type="button"
+                className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900"
+                onClick={() => {
+                  handleSendBack();
+                }}
+              >
+                {messages.toolSendBack}
+              </button>
+              <button
+                type="button"
+                className="rounded-md border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-600 hover:border-rose-300"
+                onClick={() => {
+                  handleDelete();
+                  setContextMenu(null);
+                }}
+              >
+                {messages.toolDelete}
+              </button>
+            </div>
             <DiagramInspector
               selected={selectedElement}
               labels={inspectorLabels}
