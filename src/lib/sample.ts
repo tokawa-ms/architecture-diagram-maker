@@ -88,6 +88,7 @@ export const createSampleDiagram = (labels: SampleLabels): DiagramDocument => {
       stroke: "#0F172A",
       strokeWidth: 2,
       style: "solid",
+      arrowEnds: "end",
     },
     {
       id: "line-1",

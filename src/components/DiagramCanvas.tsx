@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { DiagramElement } from "@/lib/types";
 
 interface DiagramCanvasProps {
@@ -50,43 +50,207 @@ const getElementStyle = (element: DiagramElement) => {
 
 const Arrow = ({
   element,
+  selected,
+  onSelect,
+  onUpdate,
+  onOpenContextMenu,
 }: {
   element: Extract<DiagramElement, { type: "arrow" | "line" }>;
+  selected: boolean;
+  onSelect: () => void;
+  onUpdate: (updates: Partial<DiagramElement>) => void;
+  onOpenContextMenu?: (args: { clientX: number; clientY: number }) => void;
 }) => {
   const strokeDasharray = useMemo(() => {
-    if (element.style === "dashed") {
+    const style = (element as unknown as { style?: string }).style;
+    if (style === "dashed") {
       return "6 4";
     }
-    if (element.style === "dotted") {
+    if (style === "dotted") {
       return "2 4";
     }
     return "0";
-  }, [element.style]);
+  }, [element]);
 
   const arrowHead = element.type === "arrow";
   const markerId = `arrowhead-${element.id}`;
+  const arrowEnds = arrowHead
+    ? ((element as unknown as { arrowEnds?: "end" | "both" }).arrowEnds ?? "end")
+    : "end";
+
+  const [dragHandle, setDragHandle] = useState<null | {
+    which: "start" | "end";
+    offsetX: number;
+    offsetY: number;
+    fixedStartX: number;
+    fixedStartY: number;
+    fixedEndX: number;
+    fixedEndY: number;
+  }>(null);
+
+  const [dragLine, setDragLine] = useState<null | {
+    startClientX: number;
+    startClientY: number;
+    startX: number;
+    startY: number;
+  }>(null);
+
+  const startXAbs = element.x;
+  const startYAbs = element.y;
+  const endXAbs = element.x + element.width;
+  const endYAbs = element.y + element.height;
+
+  const minXAbs = Math.min(startXAbs, endXAbs);
+  const minYAbs = Math.min(startYAbs, endYAbs);
+  const boxWidth = Math.max(Math.abs(endXAbs - startXAbs), 10);
+  const boxHeight = Math.max(Math.abs(endYAbs - startYAbs), 10);
+
+  const startX = startXAbs - minXAbs;
+  const startY = startYAbs - minYAbs;
+  const endX = endXAbs - minXAbs;
+  const endY = endYAbs - minYAbs;
+
+  useEffect(() => {
+    if (!dragHandle) return;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const nextXAbs = event.clientX - dragHandle.offsetX;
+      const nextYAbs = event.clientY - dragHandle.offsetY;
+
+      if (dragHandle.which === "start") {
+        const fixedEndXAbs = dragHandle.fixedEndX;
+        const fixedEndYAbs = dragHandle.fixedEndY;
+        onUpdate({
+          x: nextXAbs,
+          y: nextYAbs,
+          width: fixedEndXAbs - nextXAbs,
+          height: fixedEndYAbs - nextYAbs,
+        });
+        return;
+      }
+
+      onUpdate({
+        width: nextXAbs - dragHandle.fixedStartX,
+        height: nextYAbs - dragHandle.fixedStartY,
+      });
+    };
+
+    const handlePointerUp = () => {
+      setDragHandle(null);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [dragHandle, onUpdate]);
+
+  useEffect(() => {
+    if (!dragLine) return;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const dx = event.clientX - dragLine.startClientX;
+      const dy = event.clientY - dragLine.startClientY;
+      onUpdate({ x: dragLine.startX + dx, y: dragLine.startY + dy });
+    };
+
+    const handlePointerUp = () => {
+      setDragLine(null);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [dragLine, onUpdate]);
+
+  const startDragEndpoint = (
+    which: "start" | "end",
+    event: React.PointerEvent<SVGCircleElement>,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onSelect();
+
+    const pointXAbs = which === "start" ? startXAbs : endXAbs;
+    const pointYAbs = which === "start" ? startYAbs : endYAbs;
+
+    setDragHandle({
+      which,
+      offsetX: event.clientX - pointXAbs,
+      offsetY: event.clientY - pointYAbs,
+      fixedStartX: startXAbs,
+      fixedStartY: startYAbs,
+      fixedEndX: endXAbs,
+      fixedEndY: endYAbs,
+    });
+  };
+
+  const hitStrokeWidth = Math.max(16, element.strokeWidth * 8);
 
   return (
     <svg
       className="absolute left-0 top-0 overflow-visible"
       style={{
-        left: element.x,
-        top: element.y,
-        width: Math.max(element.width, 10),
-        height: Math.max(element.height, 10),
+        left: minXAbs,
+        top: minYAbs,
+        width: boxWidth,
+        height: boxHeight,
         opacity: element.opacity,
         zIndex: element.zIndex,
       }}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onSelect();
+        onOpenContextMenu?.({ clientX: event.clientX, clientY: event.clientY });
+      }}
     >
       <line
-        x1={0}
-        y1={0}
-        x2={element.width}
-        y2={element.height}
+        x1={startX}
+        y1={startY}
+        x2={endX}
+        y2={endY}
+        stroke="transparent"
+        strokeWidth={hitStrokeWidth}
+        strokeLinecap="round"
+        strokeDasharray={strokeDasharray}
+        pointerEvents="stroke"
+        className="cursor-move"
+        onPointerDown={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onSelect();
+          if (event.button !== 0) return;
+          setDragHandle(null);
+          setDragLine({
+            startClientX: event.clientX,
+            startClientY: event.clientY,
+            startX: element.x,
+            startY: element.y,
+          });
+        }}
+      />
+      <line
+        x1={startX}
+        y1={startY}
+        x2={endX}
+        y2={endY}
         stroke={element.stroke}
         strokeWidth={element.strokeWidth}
         strokeDasharray={strokeDasharray}
-        markerEnd={arrowHead ? `url(#${markerId})` : undefined}
+        markerEnd={
+          arrowHead && (arrowEnds === "end" || arrowEnds === "both")
+            ? `url(#${markerId})`
+            : undefined
+        }
+        markerStart={arrowHead && arrowEnds === "both" ? `url(#${markerId})` : undefined}
+        strokeLinecap="round"
+        pointerEvents="none"
       />
       {arrowHead && (
         <defs>
@@ -96,7 +260,7 @@ const Arrow = ({
             markerHeight="7"
             refX="8"
             refY="3.5"
-            orient="auto"
+            orient="auto-start-reverse"
             markerUnits="strokeWidth"
           >
             <polygon
@@ -105,6 +269,31 @@ const Arrow = ({
             />
           </marker>
         </defs>
+      )}
+
+      {selected && (
+        <>
+          <circle
+            cx={startX}
+            cy={startY}
+            r={6}
+            fill="white"
+            stroke="#38BDF8"
+            strokeWidth={2}
+            pointerEvents="all"
+            onPointerDown={(event) => startDragEndpoint("start", event)}
+          />
+          <circle
+            cx={endX}
+            cy={endY}
+            r={6}
+            fill="white"
+            stroke="#38BDF8"
+            strokeWidth={2}
+            pointerEvents="all"
+            onPointerDown={(event) => startDragEndpoint("end", event)}
+          />
+        </>
       )}
     </svg>
   );
@@ -127,6 +316,15 @@ const Draggable = ({
 }) => {
   const [dragging, setDragging] = useState(false);
   const [origin, setOrigin] = useState({ x: 0, y: 0 });
+  const [resizeState, setResizeState] = useState<null | {
+    handle: "nw" | "ne" | "sw" | "se";
+    startClientX: number;
+    startClientY: number;
+    startX: number;
+    startY: number;
+    startWidth: number;
+    startHeight: number;
+  }>(null);
 
   const handlePointerDown = (
     event: React.PointerEvent<HTMLDivElement>,
@@ -149,6 +347,79 @@ const Draggable = ({
     setDragging(false);
   };
 
+  const isResizable =
+    selected &&
+    (element.type === "box" || element.type === "text" || element.type === "icon");
+
+  useEffect(() => {
+    if (!resizeState) return;
+
+    const minSize = 20;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const dx = event.clientX - resizeState.startClientX;
+      const dy = event.clientY - resizeState.startClientY;
+
+      const west = resizeState.handle === "nw" || resizeState.handle === "sw";
+      const north = resizeState.handle === "nw" || resizeState.handle === "ne";
+      const east = resizeState.handle === "ne" || resizeState.handle === "se";
+      const south = resizeState.handle === "sw" || resizeState.handle === "se";
+
+      const nextWidthRaw = west
+        ? resizeState.startWidth - dx
+        : east
+          ? resizeState.startWidth + dx
+          : resizeState.startWidth;
+      const nextHeightRaw = north
+        ? resizeState.startHeight - dy
+        : south
+          ? resizeState.startHeight + dy
+          : resizeState.startHeight;
+
+      const nextWidth = Math.max(minSize, nextWidthRaw);
+      const nextHeight = Math.max(minSize, nextHeightRaw);
+
+      const nextX = west
+        ? resizeState.startX + (resizeState.startWidth - nextWidth)
+        : resizeState.startX;
+      const nextY = north
+        ? resizeState.startY + (resizeState.startHeight - nextHeight)
+        : resizeState.startY;
+
+      onUpdate({ x: nextX, y: nextY, width: nextWidth, height: nextHeight });
+    };
+
+    const handlePointerUp = () => {
+      setResizeState(null);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [onUpdate, resizeState]);
+
+  const startResize = (
+    handle: "nw" | "ne" | "sw" | "se",
+    event: React.PointerEvent<HTMLDivElement>,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onSelect();
+    setDragging(false);
+    setResizeState({
+      handle,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startX: element.x,
+      startY: element.y,
+      startWidth: element.width,
+      startHeight: element.height,
+    });
+  };
+
   return (
     <div
       className={`absolute cursor-move border-2 border-dashed ${
@@ -167,6 +438,39 @@ const Draggable = ({
       }}
     >
       {children}
+
+      {isResizable && (
+        <>
+          <div
+            role="button"
+            tabIndex={-1}
+            aria-label="resize north west"
+            className="absolute -left-2 -top-2 h-3 w-3 cursor-nwse-resize rounded-sm border border-sky-400 bg-white"
+            onPointerDown={(event) => startResize("nw", event)}
+          />
+          <div
+            role="button"
+            tabIndex={-1}
+            aria-label="resize north east"
+            className="absolute -right-2 -top-2 h-3 w-3 cursor-nesw-resize rounded-sm border border-sky-400 bg-white"
+            onPointerDown={(event) => startResize("ne", event)}
+          />
+          <div
+            role="button"
+            tabIndex={-1}
+            aria-label="resize south west"
+            className="absolute -left-2 -bottom-2 h-3 w-3 cursor-nesw-resize rounded-sm border border-sky-400 bg-white"
+            onPointerDown={(event) => startResize("sw", event)}
+          />
+          <div
+            role="button"
+            tabIndex={-1}
+            aria-label="resize south east"
+            className="absolute -right-2 -bottom-2 h-3 w-3 cursor-nwse-resize rounded-sm border border-sky-400 bg-white"
+            onPointerDown={(event) => startResize("se", event)}
+          />
+        </>
+      )}
     </div>
   );
 };
@@ -192,25 +496,16 @@ export default function DiagramCanvas({
       {elements.map((element) => {
         if (element.type === "arrow" || element.type === "line") {
           return (
-            <div
+            <Arrow
               key={element.id}
-              onPointerDown={(event) => {
-                event.stopPropagation();
-                onSelect(element.id);
-              }}
-              onContextMenu={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                onSelect(element.id);
-                onOpenContextMenu?.({
-                  elementId: element.id,
-                  clientX: event.clientX,
-                  clientY: event.clientY,
-                });
-              }}
-            >
-              <Arrow element={element} />
-            </div>
+              element={element}
+              selected={selectedId === element.id}
+              onSelect={() => onSelect(element.id)}
+              onUpdate={(updates) => onUpdate(element.id, updates)}
+              onOpenContextMenu={(args) =>
+                onOpenContextMenu?.({ elementId: element.id, ...args })
+              }
+            />
           );
         }
 
