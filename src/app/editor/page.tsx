@@ -133,10 +133,10 @@ export default function EditorPage() {
   const [diagram, setDiagram] = useState<DiagramDocument>(() =>
     createEmptyDocument(messages.defaultDiagramName),
   );
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [storageModalOpen, setStorageModalOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<{
-    elementId: string;
+    elementIds: string[];
     left: number;
     top: number;
   } | null>(null);
@@ -154,14 +154,18 @@ export default function EditorPage() {
     icon: messages.defaultIconLabel,
   };
 
-  const selectedElement =
-    diagram.elements.find((element) => element.id === selectedId) ?? null;
+  const selectedElements = useMemo(
+    () => diagram.elements.filter((element) => selectedIds.includes(element.id)),
+    [diagram.elements, selectedIds],
+  );
+  const selectedElement = selectedElements.length === 1 ? selectedElements[0] : null;
 
   const inspectorLabels = useMemo(
     () => ({
       title: messages.panelPropertiesTitle,
       hint: messages.inspectorHint,
       noSelection: messages.noSelection,
+      multiSelection: messages.multiSelection,
       propertyName: messages.propertyName,
       propertyFill: messages.propertyFill,
       propertyBorder: messages.propertyBorder,
@@ -210,6 +214,55 @@ export default function EditorPage() {
     }));
   };
 
+  const updateElements = (
+    updater: (elements: DiagramElement[]) => DiagramElement[],
+  ) => {
+    setDiagram((prev) => ({
+      ...prev,
+      elements: updater(prev.elements),
+      updatedAt: new Date().toISOString(),
+    }));
+  };
+
+  const expandSelectionByGroup = (
+    ids: string[],
+    elements: DiagramElement[],
+  ) => {
+    const selected = new Set(ids);
+    const groupIds = new Set(
+      elements
+        .filter((element) => selected.has(element.id) && element.groupId)
+        .map((element) => element.groupId as string),
+    );
+
+    if (groupIds.size === 0) return Array.from(selected);
+
+    for (const element of elements) {
+      if (element.groupId && groupIds.has(element.groupId)) {
+        selected.add(element.id);
+      }
+    }
+
+    return Array.from(selected);
+  };
+
+  const resolveSelection = (ids: string[]) => {
+    if (ids.length === 1 && selectedIds.includes(ids[0]) && selectedIds.length > 1) {
+      return selectedIds;
+    }
+    return expandSelectionByGroup(ids, diagram.elements);
+  };
+
+  const applySelection = (ids: string[]) => {
+    setSelectedIds(resolveSelection(ids));
+  };
+
+  useEffect(() => {
+    setSelectedIds((prev) =>
+      prev.filter((id) => diagram.elements.some((element) => element.id === id)),
+    );
+  }, [diagram.elements]);
+
   const handleAddElement = (
     type: DiagramElementType,
     style?: ArrowStyle,
@@ -217,8 +270,8 @@ export default function EditorPage() {
   ) => {
     console.log("Adding element", type);
     const element = createElement(type, defaultLabels, style, ends);
-    updateDocument({ elements: [...diagram.elements, element] });
-    setSelectedId(element.id);
+    updateElements((elements) => [...elements, element]);
+    applySelection([element.id]);
   };
 
   const handlePaletteSelect = (item: {
@@ -235,13 +288,13 @@ export default function EditorPage() {
       src: item.src,
       label: item.name,
     };
-    updateDocument({ elements: [...diagram.elements, elementWithIcon] });
-    setSelectedId(elementWithIcon.id);
+    updateElements((elements) => [...elements, elementWithIcon]);
+    applySelection([elementWithIcon.id]);
   };
 
   const handleUpdateElement = (id: string, updates: Partial<DiagramElement>) => {
-    updateDocument({
-      elements: diagram.elements.map((element) => {
+    updateElements((elements) =>
+      elements.map((element) => {
         if (element.id !== id) {
           return element;
         }
@@ -294,13 +347,13 @@ export default function EditorPage() {
         }
         return { ...element, ...updates } as DiagramElement;
       }),
-    });
+    );
   };
 
   const handleClear = () => {
     console.log("Clearing canvas");
     updateDocument({ elements: [] });
-    setSelectedId(null);
+    setSelectedIds([]);
   };
 
   const reorderZIndex = (
@@ -337,38 +390,99 @@ export default function EditorPage() {
 
   const handleBringFront = () => {
     if (!selectedElement) return;
-    updateDocument({
-      elements: reorderZIndex(diagram.elements, selectedElement.id, "front"),
-    });
+    updateElements((elements) =>
+      reorderZIndex(elements, selectedElement.id, "front"),
+    );
   };
 
   const handleSendBack = () => {
     if (!selectedElement) return;
-    updateDocument({
-      elements: reorderZIndex(diagram.elements, selectedElement.id, "back"),
-    });
+    updateElements((elements) =>
+      reorderZIndex(elements, selectedElement.id, "back"),
+    );
   };
 
   const handleDuplicate = () => {
-    if (!selectedElement) return;
-    const duplicated: DiagramElement = {
-      ...selectedElement,
-      id: `${selectedElement.id}-copy-${Date.now()}`,
-      x: selectedElement.x + 20,
-      y: selectedElement.y + 20,
-      zIndex: selectedElement.zIndex + 1,
-    };
-    updateDocument({ elements: [...diagram.elements, duplicated] });
+    if (selectedElements.length === 0) return;
+    const timestamp = Date.now();
+    const duplicates = selectedElements.map((element, index) => ({
+      ...element,
+      id: `${element.id}-copy-${timestamp}-${index}`,
+      x: element.x + 20,
+      y: element.y + 20,
+      zIndex: element.zIndex + 1,
+      groupId: undefined,
+    }));
+    updateElements((elements) => [...elements, ...duplicates]);
+    setSelectedIds(duplicates.map((element) => element.id));
   };
 
   const handleDelete = () => {
-    if (!selectedElement) return;
-    updateDocument({
-      elements: diagram.elements.filter(
-        (element) => element.id !== selectedElement.id,
+    if (selectedIds.length === 0) return;
+    updateElements((elements) =>
+      elements.filter((element) => !selectedIds.includes(element.id)),
+    );
+    setSelectedIds([]);
+  };
+
+  const handleMoveSelection = (args: {
+    ids: string[];
+    deltaX: number;
+    deltaY: number;
+  }) => {
+    const { ids, deltaX, deltaY } = args;
+    if (ids.length === 0) return;
+    updateElements((elements) =>
+      elements.map((element) => {
+        if (!ids.includes(element.id)) return element;
+        if (element.type === "arrow" || element.type === "line") {
+          return {
+            ...element,
+            startX: element.startX + deltaX,
+            startY: element.startY + deltaY,
+            endX: element.endX + deltaX,
+            endY: element.endY + deltaY,
+            x: element.x + deltaX,
+            y: element.y + deltaY,
+          } as DiagramElement;
+        }
+        return { ...element, x: element.x + deltaX, y: element.y + deltaY };
+      }),
+    );
+  };
+
+  const handleGroup = () => {
+    if (selectedElements.length < 2) return;
+    const existingGroupIds = selectedElements
+      .map((element) => element.groupId)
+      .filter((groupId): groupId is string => Boolean(groupId));
+    const uniqueGroupIds = new Set(existingGroupIds);
+    const groupId =
+      existingGroupIds.length === selectedElements.length && uniqueGroupIds.size === 1
+        ? existingGroupIds[0]
+        : `group-${Date.now()}`;
+
+    updateElements((elements) =>
+      elements.map((element) =>
+        selectedIds.includes(element.id) ? { ...element, groupId } : element,
       ),
-    });
-    setSelectedId(null);
+    );
+  };
+
+  const handleUngroup = () => {
+    const groupIds = new Set(
+      selectedElements
+        .map((element) => element.groupId)
+        .filter((groupId): groupId is string => Boolean(groupId)),
+    );
+    if (groupIds.size === 0) return;
+    updateElements((elements) =>
+      elements.map((element) =>
+        element.groupId && groupIds.has(element.groupId)
+          ? { ...element, groupId: undefined }
+          : element,
+      ),
+    );
   };
 
   const handleLoadSample = () => {
@@ -381,7 +495,7 @@ export default function EditorPage() {
       publishInterfaces: messages.samplePublishInterfaces,
     });
     setDiagram(sample);
-    setSelectedId(sample.elements[0]?.id ?? null);
+    applySelection(sample.elements[0]?.id ? [sample.elements[0].id] : []);
   };
 
   const handleSave = () => {
@@ -667,6 +781,9 @@ export default function EditorPage() {
     };
   };
 
+  const canGroup = selectedElements.length >= 2;
+  const canUngroup = selectedElements.some((element) => element.groupId);
+
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader
@@ -748,14 +865,19 @@ export default function EditorPage() {
                   elements={[...diagram.elements].sort(
                     (a, b) => a.zIndex - b.zIndex,
                   )}
-                  selectedId={selectedId}
+                  selectedIds={selectedIds}
                   emptyMessage={messages.canvasEmpty}
-                  onSelect={setSelectedId}
+                  onSelect={(ids) => {
+                    applySelection(ids);
+                    setContextMenu(null);
+                  }}
                   onUpdate={handleUpdateElement}
+                  onMoveSelection={handleMoveSelection}
                   onOpenContextMenu={(args) => {
                     const position = clampContextMenuPosition(args);
-                    setSelectedId(args.elementId);
-                    setContextMenu({ elementId: args.elementId, ...position });
+                    const nextSelection = resolveSelection([args.elementId]);
+                    setSelectedIds(nextSelection);
+                    setContextMenu({ elementIds: nextSelection, ...position });
                   }}
                 />
               </div>
@@ -825,7 +947,7 @@ export default function EditorPage() {
         </div>
       )}
 
-      {contextMenu && selectedElement && selectedElement.id === contextMenu.elementId && (
+      {contextMenu && contextMenu.elementIds.length > 0 && (
         <div
           className="fixed inset-0 z-50"
           onPointerDown={() => setContextMenu(null)}
@@ -842,19 +964,21 @@ export default function EditorPage() {
             <div className="mb-2 grid grid-cols-3 gap-2">
               <button
                 type="button"
-                className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900"
+                className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
                 onClick={() => {
                   handleBringFront();
                 }}
+                disabled={!selectedElement}
               >
                 {messages.toolBringFront}
               </button>
               <button
                 type="button"
-                className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900"
+                className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
                 onClick={() => {
                   handleSendBack();
                 }}
+                disabled={!selectedElement}
               >
                 {messages.toolSendBack}
               </button>
@@ -869,10 +993,34 @@ export default function EditorPage() {
                 {messages.toolDelete}
               </button>
             </div>
+            <div className="mb-2 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={() => {
+                  handleGroup();
+                }}
+                disabled={!canGroup}
+              >
+                {messages.toolGroup}
+              </button>
+              <button
+                type="button"
+                className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={() => {
+                  handleUngroup();
+                }}
+                disabled={!canUngroup}
+              >
+                {messages.toolUngroup}
+              </button>
+            </div>
             <DiagramInspector
               selected={selectedElement}
               labels={inspectorLabels}
+              selectionCount={selectedElements.length}
               onUpdate={(updates) => {
+                if (!selectedElement) return;
                 handleUpdateElement(selectedElement.id, updates);
               }}
             />

@@ -47,6 +47,8 @@ const messages = {
     toolSendBack: "最背面",
     toolDuplicate: "複製",
     toolDelete: "削除",
+    toolGroup: "グループ化",
+    toolUngroup: "グループ解除",
     propertyFill: "塗り",
     propertyBorder: "枠線",
     propertyText: "テキスト",
@@ -99,6 +101,7 @@ const messages = {
     storageCopy: "コピー",
     storageCopied: "コピーしました",
     inspectorHint: "要素をクリックして編集してください。",
+    multiSelection: "複数の要素が選択されています。",
     paletteHint:
       "public/icons の画像が自動表示されます（サンプルは環境変数で icons-sample を表示可能）。",
     paletteEmpty: "アイコンが見つかりません。",
@@ -151,6 +154,8 @@ const messages = {
     toolSendBack: "Send back",
     toolDuplicate: "Duplicate",
     toolDelete: "Delete",
+    toolGroup: "Group",
+    toolUngroup: "Ungroup",
     propertyFill: "Fill",
     propertyBorder: "Border",
     propertyText: "Text",
@@ -201,6 +206,7 @@ const messages = {
     storageCopy: "Copy",
     storageCopied: "Copied",
     inspectorHint: "Select an element to edit it.",
+    multiSelection: "Multiple elements selected.",
     paletteHint:
       "Images under public/icons appear automatically (optional icons-sample via env).",
     paletteEmpty: "No icons found.",
