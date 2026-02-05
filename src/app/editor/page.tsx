@@ -1117,6 +1117,7 @@ export default function EditorPage() {
                     storageNew: messages.storageNew,
                     storageDelete: messages.storageDelete,
                     storageImport: messages.storageImport,
+                    storageImportFile: messages.storageImportFile,
                     storageExport: messages.storageExport,
                     storageCopy: messages.storageCopy,
                     storageCopied: messages.storageCopied,
