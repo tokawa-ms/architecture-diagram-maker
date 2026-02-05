@@ -986,7 +986,7 @@ export default function EditorPage() {
         tagline={messages.tagline}
       />
       <main className="flex-1 bg-slate-50">
-        <section className="mx-[10px] flex flex-col gap-6 px-0 py-10">
+        <section className="mx-[10px] flex flex-1 flex-col gap-6 px-0 py-10">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <h1 className="text-2xl font-semibold text-slate-900">
               {messages.editorTitle}
@@ -1031,7 +1031,7 @@ export default function EditorPage() {
               />
             </div>
           </div>
-          <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
+          <div className="grid flex-1 gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
             <div className="flex flex-col gap-6">
               <DiagramPalette
                 title={messages.panelPaletteTitle}
@@ -1051,8 +1051,8 @@ export default function EditorPage() {
                 {messages.storageMenuButton}
               </button>
             </div>
-            <div className="space-y-4">
-              <div id="diagram-canvas">
+            <div className="flex min-h-0 flex-col">
+              <div id="diagram-canvas" className="flex-1">
                 <DiagramCanvas
                   elements={[...diagram.elements].sort(
                     (a, b) => a.zIndex - b.zIndex,
@@ -1074,9 +1074,6 @@ export default function EditorPage() {
                     setContextMenu({ elementIds: nextSelection, ...position });
                   }}
                 />
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-white p-4 text-xs text-slate-500">
-                {messages.panelStorageHint}
               </div>
             </div>
           </div>
