@@ -4,7 +4,7 @@
 
 ## Overview
 
-A lightweight editor for quickly drafting architecture diagrams and saving them as JSON. The current focus is on UI and local storage, with Azure Cosmos DB integration planned later.
+A lightweight editor for quickly drafting architecture diagrams and saving them as JSON. In addition to local storage, you can enable Azure Cosmos DB for cloud storage.
 
 ## Key Features
 
@@ -14,6 +14,11 @@ A lightweight editor for quickly drafting architecture diagrams and saving them 
 - Z-order control plus duplicate/delete
 - Save/load JSON in local storage
 - Export to PNG / JSON
+
+## Docs
+
+- [docs/architecture-en.md](docs/architecture-en.md): Architecture overview
+- [docs/operations-en.md](docs/operations-en.md): Operations guide (detailed)
 
 ## Local Development
 
@@ -60,9 +65,27 @@ Health checks use `/api/health`.
 2. Build and push the container image to Azure Container Registry.
 3. Create the Container App and configure the `PORT` environment variable.
 
+Minimal expectations:
+
+- `NODE_ENV=production`
+- Health checks use `/api/health`
+- Enable managed identity when Cosmos DB is used
+
 ## Azure Integration
 
-Storage is currently implemented with local storage only. The `/api/diagrams` route is intended for future Azure SDK-based persistence.
+The `/api/diagrams` route supports Azure Cosmos DB persistence. If the environment variables are not set, it falls back to local storage.
+
+### Cosmos DB setup
+
+Set the following to enable Cosmos DB via DefaultAzureCredential. Ensure the database and container are created in advance.
+
+- `COSMOS_ENDPOINT`
+- `COSMOS_DATABASE`
+- `COSMOS_CONTAINER`
+
+> The container partition key is expected to be `/id`. With AAD auth, grant the `Cosmos DB Built-in Data Contributor` role.
+
+For local development, use Azure CLI credentials (`az login`). In production, run with a managed identity in Azure Container Apps.
 
 ## Localization
 

@@ -18,6 +18,10 @@ const messages = {
     editorTitle: "エディタビュー",
     editorSubtitle:
       "キャンバスをドラッグして要素を配置し、保存・エクスポートできます。",
+    diagramNameLabel: "アーキテクチャ図名",
+    diagramNamePlaceholder: "例: サービス構成図",
+    diagramIdPrefixLabel: "ID プレフィックス",
+    diagramIdPrefixPlaceholder: "例: arch",
     panelPaletteTitle: "アイコンパレット",
     panelPaletteSearch: "アイコン検索",
     panelToolsTitle: "作図ツール",
@@ -25,7 +29,7 @@ const messages = {
     panelLayersTitle: "レイヤー",
     panelStorageTitle: "保存済みデータ",
     panelStorageHint:
-      "JSON 形式でローカルストレージに保存します。",
+      "JSON 形式で保存します。Cosmos DB を設定している場合はクラウドにも保存します。",
     storageMenuButton: "データ保存/復元",
     modalClose: "閉じる",
     toolBox: "ボックス",
@@ -79,7 +83,7 @@ const messages = {
     storageEmpty: "保存済みのデータがありません。",
     settingsTitle: "設定",
     settingsBody:
-      "保存先は現在ブラウザのローカルストレージのみです。",
+      "保存先はローカルストレージ、または Cosmos DB を設定している場合はクラウドです。",
     historyLimitTitle: "履歴保存数",
     historyLimitBody:
       "Undo/Redo の履歴をメモリに保持する件数を設定します。",
@@ -92,7 +96,7 @@ const messages = {
     itemsTitle: "アイコンカタログ",
     itemsBody:
       "public/icons 配下のSVG/PNGをパレットに表示します（サンプル icons-sample は任意）。",
-    footerText: "Microsoft Azure の利用を前提に設計されています。",
+    footerText: "",
     languageLabel: "言語",
     loadSample: "サンプル読み込み",
     storageKeyLabel: "保存キー",
@@ -114,7 +118,7 @@ const messages = {
     paletteEmpty: "アイコンが見つかりません。",
     imageExportHint: "キャンバスを PNG として保存します。",
     azureHint:
-      "将来的に Azure Cosmos DB などへの保存を追加予定です。",
+      "Cosmos DB を設定すると、作成した図をクラウドに保存できます。",
     loadExampleHint: "例として簡易な構成を読み込みます。",
     noSelection: "選択中の要素がありません。",
   },
@@ -133,13 +137,18 @@ const messages = {
     editorTitle: "Editor View",
     editorSubtitle:
       "Drag elements onto the canvas and save or export the result.",
+    diagramNameLabel: "Diagram name",
+    diagramNamePlaceholder: "e.g. Service architecture",
+    diagramIdPrefixLabel: "ID prefix",
+    diagramIdPrefixPlaceholder: "e.g. arch",
     panelPaletteTitle: "Icon palette",
     panelPaletteSearch: "Search icons",
     panelToolsTitle: "Drawing tools",
     panelPropertiesTitle: "Properties",
     panelLayersTitle: "Layers",
     panelStorageTitle: "Saved data",
-    panelStorageHint: "Saved to local storage as JSON.",
+    panelStorageHint:
+      "Saved as JSON. If Cosmos DB is configured, it also saves to the cloud.",
     storageMenuButton: "Save/Load",
     modalClose: "Close",
     toolBox: "Box",
@@ -192,7 +201,8 @@ const messages = {
     canvasEmpty: "No elements on the canvas yet.",
     storageEmpty: "No saved diagrams yet.",
     settingsTitle: "Settings",
-    settingsBody: "Storage is currently limited to local storage.",
+    settingsBody:
+      "Storage uses local storage, or Cosmos DB when configured.",
     historyLimitTitle: "History limit",
     historyLimitBody:
       "Set how many undo/redo steps are kept in memory.",
@@ -204,7 +214,7 @@ const messages = {
     itemsTitle: "Icon catalog",
     itemsBody:
       "SVG/PNG icons under public/icons appear in the palette (optional icons-sample via env).",
-    footerText: "Designed with Microsoft Azure in mind.",
+    footerText: "",
     languageLabel: "Language",
     loadSample: "Load sample",
     storageKeyLabel: "Storage key",
@@ -225,7 +235,7 @@ const messages = {
       "Images under public/icons appear automatically (optional icons-sample via env).",
     paletteEmpty: "No icons found.",
     imageExportHint: "Export the canvas as PNG.",
-    azureHint: "Later we will add Azure Cosmos DB storage.",
+    azureHint: "Configure Cosmos DB to save diagrams to the cloud.",
     loadExampleHint: "Load a simple starter layout.",
     noSelection: "No element selected.",
   },
