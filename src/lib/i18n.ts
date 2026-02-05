@@ -90,6 +90,12 @@ const messages = {
     historyLimitLabel: "保存件数",
     historyLimitHint:
       "既定は 100 件（NEXT_PUBLIC_HISTORY_LIMIT で上書き可能）。",
+    exportScaleTitle: "PNG エクスポート解像度",
+    exportScaleBody:
+      "PNG 出力の倍率を設定します。高いほど解像度は上がりますが、処理時間も増えます。",
+    exportScaleLabel: "倍率",
+    exportScaleHint:
+      "既定は 4（NEXT_PUBLIC_EXPORT_SCALE で上書き可能、1〜8）。",
     aboutTitle: "アプリ概要",
     aboutBody:
       "アーキテクチャ図を素早く作成するための軽量エディターです。",
@@ -209,6 +215,12 @@ const messages = {
     historyLimitLabel: "Steps to keep",
     historyLimitHint:
       "Default is 100 (override with NEXT_PUBLIC_HISTORY_LIMIT).",
+    exportScaleTitle: "PNG export resolution",
+    exportScaleBody:
+      "Set the scale multiplier for PNG export. Higher values increase resolution but take longer.",
+    exportScaleLabel: "Scale",
+    exportScaleHint:
+      "Default is 4 (override with NEXT_PUBLIC_EXPORT_SCALE, 1-8).",
     aboutTitle: "About",
     aboutBody: "A lightweight editor for drafting architecture diagrams.",
     itemsTitle: "Icon catalog",
