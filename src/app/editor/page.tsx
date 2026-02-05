@@ -137,6 +137,7 @@ export default function EditorPage() {
   const [diagram, setDiagram] = useState<DiagramDocument>(() =>
     createEmptyDocument(messages.defaultDiagramName),
   );
+  const [idPrefix, setIdPrefix] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [storageModalOpen, setStorageModalOpen] = useState(false);
   const [historyLimit, setHistoryLimit] = useState(() => getHistoryLimit());
@@ -690,9 +691,9 @@ export default function EditorPage() {
     applySelection(sample.elements[0]?.id ? [sample.elements[0].id] : []);
   };
 
-  const handleSave = () => {
-    console.log("Saving diagram to local storage", diagram.id);
-    saveDiagram(diagram);
+  const handleSave = async () => {
+    console.log("Saving diagram to storage", diagram.id);
+    await saveDiagram(diagram);
   };
 
   const handleExportJson = () => {
@@ -991,44 +992,72 @@ export default function EditorPage() {
             <h1 className="text-2xl font-semibold text-slate-900">
               {messages.editorTitle}
             </h1>
-            <div className="lg:max-w-[calc(100%-220px)]">
-              <DiagramTools
-                variant="toolbar"
-                labels={{
-                  title: messages.panelToolsTitle,
-                  toolBox: messages.toolBox,
-                  toolText: messages.toolText,
-                  toolLineSolid: messages.toolLineSolid,
-                  toolLineDashed: messages.toolLineDashed,
-                  toolArrowSolidSingle: messages.toolArrowSolidSingle,
-                  toolArrowDashedSingle: messages.toolArrowDashedSingle,
-                  toolArrowSolidDouble: messages.toolArrowSolidDouble,
-                  toolArrowDashedDouble: messages.toolArrowDashedDouble,
-                  toolClear: messages.toolClear,
-                  toolCanvasMenu: messages.toolCanvasMenu,
-                  toolExportMenu: messages.toolExportMenu,
-                  toolExport: messages.toolExport,
-                  toolExportJson: messages.toolExportJson,
-                  toolSave: messages.toolSave,
-                  toolLoad: messages.toolLoad,
-                  toolBringFront: messages.toolBringFront,
-                  toolSendBack: messages.toolSendBack,
-                  toolDuplicate: messages.toolDuplicate,
-                  toolDelete: messages.toolDelete,
-                  imageExportHint: messages.imageExportHint,
-                  loadSample: messages.loadSample,
-                }}
-                selected={selectedElement}
-                onAddElement={handleAddElement}
-                onClear={handleClear}
-                onBringFront={handleBringFront}
-                onSendBack={handleSendBack}
-                onDuplicate={handleDuplicate}
-                onDelete={handleDelete}
-                onExportPng={handleExportPng}
-                onExportJson={handleExportJson}
-                onLoadSample={handleLoadSample}
-              />
+            <div className="flex flex-1 flex-col gap-3 lg:flex-row lg:items-center lg:justify-end">
+              <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs text-slate-600">
+                <label className="text-[11px] font-semibold text-slate-500">
+                  {messages.diagramNameLabel}
+                </label>
+                <input
+                  type="text"
+                  className="w-[220px] rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-700"
+                  placeholder={messages.diagramNamePlaceholder}
+                  value={diagram.name}
+                  onChange={(event) =>
+                    updateDocument({ name: event.target.value })
+                  }
+                />
+              </div>
+              <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs text-slate-600">
+                <label className="text-[11px] font-semibold text-slate-500">
+                  {messages.diagramIdPrefixLabel}
+                </label>
+                <input
+                  type="text"
+                  className="w-[200px] rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-700"
+                  placeholder={messages.diagramIdPrefixPlaceholder}
+                  value={idPrefix}
+                  onChange={(event) => setIdPrefix(event.target.value)}
+                />
+              </div>
+              <div className="lg:max-w-[calc(100%-220px)]">
+                <DiagramTools
+                  variant="toolbar"
+                  labels={{
+                    title: messages.panelToolsTitle,
+                    toolBox: messages.toolBox,
+                    toolText: messages.toolText,
+                    toolLineSolid: messages.toolLineSolid,
+                    toolLineDashed: messages.toolLineDashed,
+                    toolArrowSolidSingle: messages.toolArrowSolidSingle,
+                    toolArrowDashedSingle: messages.toolArrowDashedSingle,
+                    toolArrowSolidDouble: messages.toolArrowSolidDouble,
+                    toolArrowDashedDouble: messages.toolArrowDashedDouble,
+                    toolClear: messages.toolClear,
+                    toolCanvasMenu: messages.toolCanvasMenu,
+                    toolExportMenu: messages.toolExportMenu,
+                    toolExport: messages.toolExport,
+                    toolExportJson: messages.toolExportJson,
+                    toolSave: messages.toolSave,
+                    toolLoad: messages.toolLoad,
+                    toolBringFront: messages.toolBringFront,
+                    toolSendBack: messages.toolSendBack,
+                    toolDuplicate: messages.toolDuplicate,
+                    toolDelete: messages.toolDelete,
+                    imageExportHint: messages.imageExportHint,
+                    loadSample: messages.loadSample,
+                  }}
+                  selected={selectedElement}
+                  onAddElement={handleAddElement}
+                  onClear={handleClear}
+                  onBringFront={handleBringFront}
+                  onSendBack={handleSendBack}
+                  onDuplicate={handleDuplicate}
+                  onDelete={handleDelete}
+                  onExportPng={handleExportPng}
+                  onExportJson={handleExportJson}
+                  onLoadSample={handleLoadSample}
+                />
+              </div>
             </div>
           </div>
           <div className="grid flex-1 gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
@@ -1124,6 +1153,7 @@ export default function EditorPage() {
                     empty: messages.storageEmpty,
                   }}
                   current={diagram}
+                  idPrefix={idPrefix}
                   onLoad={(doc) => {
                     recordHistory();
                     setDiagram(doc);

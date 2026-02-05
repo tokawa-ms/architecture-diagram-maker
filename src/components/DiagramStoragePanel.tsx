@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { DiagramDocument, StoredDiagramSummary } from "@/lib/types";
 import {
   deleteDiagram,
@@ -30,6 +30,7 @@ interface DiagramStoragePanelProps {
     empty: string;
   };
   current: DiagramDocument;
+  idPrefix?: string;
   onLoad: (document: DiagramDocument) => void;
 }
 
@@ -38,32 +39,45 @@ export default function DiagramStoragePanel({
   hint,
   labels,
   current,
+  idPrefix,
   onLoad,
 }: DiagramStoragePanelProps) {
-  const [items, setItems] = useState<StoredDiagramSummary[]>(() =>
-    listStoredDiagrams(),
-  );
+  const [items, setItems] = useState<StoredDiagramSummary[]>([]);
+  const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [importFile, setImportFile] = useState<File | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
-  const refreshItems = () => {
-    setItems(listStoredDiagrams());
+  const refreshItems = async () => {
+    setLoading(true);
+    const nextItems = await listStoredDiagrams();
+    setItems(nextItems);
+    setLoading(false);
   };
 
-  const handleSave = (overwrite: boolean) => {
+  useEffect(() => {
+    void refreshItems();
+  }, []);
+
+  const buildNewId = () => {
+    const trimmed = idPrefix?.trim();
+    const suffix = Date.now();
+    return trimmed ? `${trimmed}-${suffix}` : `${suffix}`;
+  };
+
+  const handleSave = async (overwrite: boolean) => {
     const now = new Date().toISOString();
     const document = {
       ...current,
-      id: overwrite ? current.id : `${current.id}-${Date.now()}`,
+      id: overwrite ? current.id : buildNewId(),
       updatedAt: now,
       createdAt: overwrite ? current.createdAt : now,
     };
-    saveDiagram(document);
+    await saveDiagram(document);
     if (!overwrite) {
       onLoad(document);
     }
-    refreshItems();
+    await refreshItems();
   };
 
   const handleCopy = async () => {
@@ -87,8 +101,8 @@ export default function DiagramStoragePanel({
       if (!document) {
         return;
       }
-      saveDiagram(document);
-      refreshItems();
+      await saveDiagram(document);
+      await refreshItems();
       setImportFile(null);
       if (importInputRef.current) {
         importInputRef.current.value = "";
@@ -171,7 +185,7 @@ export default function DiagramStoragePanel({
           <span>{labels.storageActionLabel}</span>
         </div>
         <div className="mt-2 grid gap-2 text-xs">
-          {items.length === 0 && (
+          {!loading && items.length === 0 && (
             <p className="text-xs text-slate-400">{labels.empty}</p>
           )}
           {items.map((item) => (
@@ -187,8 +201,8 @@ export default function DiagramStoragePanel({
                 <button
                   type="button"
                   className="text-xs font-semibold text-slate-600 hover:text-slate-900"
-                  onClick={() => {
-                    const doc = loadDiagram(item.id);
+                  onClick={async () => {
+                    const doc = await loadDiagram(item.id);
                     if (doc) {
                       console.log("Loading diagram from storage", item.id);
                       onLoad(doc);
@@ -200,10 +214,10 @@ export default function DiagramStoragePanel({
                 <button
                   type="button"
                   className="text-xs font-semibold text-rose-600 hover:text-rose-700"
-                  onClick={() => {
-                    deleteDiagram(item.id);
+                  onClick={async () => {
+                    await deleteDiagram(item.id);
                     console.log("Deleted diagram from storage", item.id);
-                    refreshItems();
+                    await refreshItems();
                   }}
                 >
                   {labels.storageDelete}
