@@ -654,7 +654,7 @@ export default function DiagramCanvas({
   return (
     <div
       id="diagram-canvas-root"
-      className="relative isolate z-0 h-[520px] w-full rounded-2xl border border-dashed border-slate-300 bg-white shadow-inner"
+      className="relative isolate z-0 h-full min-h-[520px] w-full rounded-2xl border border-dashed border-slate-300 bg-white shadow-inner"
       onPointerDown={(event) => {
         if (event.button !== 0) return;
         if (event.target !== event.currentTarget) return;
