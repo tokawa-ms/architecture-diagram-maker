@@ -77,6 +77,10 @@ const createElement = (
         type: "arrow",
         width: 160,
         height: 0,
+        startX: base.x,
+        startY: base.y,
+        endX: base.x + 160,
+        endY: base.y,
         stroke: "#0F172A",
         strokeWidth: 2,
         style: style ?? "solid",
@@ -88,6 +92,10 @@ const createElement = (
         type: "line",
         width: 200,
         height: 0,
+        startX: base.x,
+        startY: base.y,
+        endX: base.x + 200,
+        endY: base.y,
         stroke: "#64748B",
         strokeWidth: 2,
         style: style ?? "dashed",
@@ -237,6 +245,53 @@ export default function EditorPage() {
         if (element.id !== id) {
           return element;
         }
+        if (element.type === "arrow" || element.type === "line") {
+          const nextStartX =
+            "startX" in updates && typeof updates.startX === "number"
+              ? updates.startX
+              : "x" in updates && typeof updates.x === "number"
+                ? updates.x
+              : "startX" in element
+                ? element.startX
+                : element.x;
+          const nextStartY =
+            "startY" in updates && typeof updates.startY === "number"
+              ? updates.startY
+              : "y" in updates && typeof updates.y === "number"
+                ? updates.y
+              : "startY" in element
+                ? element.startY
+                : element.y;
+          const nextEndX =
+            "endX" in updates && typeof updates.endX === "number"
+              ? updates.endX
+              : "width" in updates && typeof updates.width === "number"
+                ? nextStartX + updates.width
+              : "endX" in element
+                ? element.endX
+                : element.x + element.width;
+          const nextEndY =
+            "endY" in updates && typeof updates.endY === "number"
+              ? updates.endY
+              : "height" in updates && typeof updates.height === "number"
+                ? nextStartY + updates.height
+              : "endY" in element
+                ? element.endY
+                : element.y + element.height;
+
+          const merged = { ...element, ...updates } as DiagramElement;
+          return {
+            ...merged,
+            startX: nextStartX,
+            startY: nextStartY,
+            endX: nextEndX,
+            endY: nextEndY,
+            x: nextStartX,
+            y: nextStartY,
+            width: nextEndX - nextStartX,
+            height: nextEndY - nextStartY,
+          } as DiagramElement;
+        }
         return { ...element, ...updates } as DiagramElement;
       }),
     });
@@ -344,14 +399,257 @@ export default function EditorPage() {
 
   const handleExportPng = async () => {
     console.log("Exporting diagram as PNG", diagram.name);
-    const canvas = window.document.getElementById("diagram-canvas");
-    if (!canvas) return;
+    const exportTarget =
+      window.document.getElementById("diagram-canvas-root") ??
+      window.document.getElementById("diagram-canvas");
+    if (!exportTarget) return;
     const html2canvas = await loadHtmlToCanvas();
-    const result = await html2canvas(canvas as HTMLElement);
-    const link = window.document.createElement("a");
-    link.download = `${diagram.name || "diagram"}.png`;
-    link.href = result.toDataURL("image/png");
-    link.click();
+    const hasUnsupportedColorFn = (value: string) =>
+      /\boklch\(|\boklab\(|\blch\(|\blab\(|\bcolor-mix\(|\bcolor\(/i.test(value);
+
+    const sanitizeColor = (value: string, propertyName?: string) => {
+      if (!value || !hasUnsupportedColorFn(value)) return value;
+      const name = (propertyName ?? "").toLowerCase();
+      if (name === "color" || name.endsWith("-color") || name.includes("color")) {
+        if (name.includes("background")) return "rgba(0, 0, 0, 0)";
+        if (name.includes("border")) return "rgba(0, 0, 0, 0)";
+        if (name.includes("outline")) return "rgba(0, 0, 0, 0)";
+        if (name.includes("caret")) return "rgb(51, 65, 85)";
+        if (name.includes("decoration")) return "rgb(51, 65, 85)";
+        return "rgb(51, 65, 85)";
+      }
+      return "rgba(0, 0, 0, 0)";
+    };
+
+    const originalGetComputedStyle = window.getComputedStyle.bind(window);
+    window.getComputedStyle = ((element: Element, pseudoElt?: string | null) => {
+      const style = originalGetComputedStyle(element, pseudoElt as string | null);
+      const originalGetPropertyValue = style.getPropertyValue.bind(style);
+      return new Proxy(style, {
+        get(target, prop, receiver) {
+          if (prop === "getPropertyValue") {
+            return (name: string) => sanitizeColor(originalGetPropertyValue(name), name);
+          }
+          // Many CSSStyleDeclaration properties are WebIDL accessors that require
+          // the original object as the receiver; using the Proxy as receiver can
+          // throw "Illegal invocation".
+          const value = Reflect.get(target, prop, target);
+          if (typeof value === "function") {
+            return value.bind(target);
+          }
+          if (typeof prop === "string" && typeof value === "string") {
+            return sanitizeColor(value, prop);
+          }
+          return value;
+        },
+      });
+    }) as typeof window.getComputedStyle;
+
+    const exportScale = window.devicePixelRatio || 1;
+
+    const drawArrowhead = (args: {
+      ctx: CanvasRenderingContext2D;
+      fromX: number;
+      fromY: number;
+      toX: number;
+      toY: number;
+      strokeWidth: number;
+    }) => {
+      const { ctx, fromX, fromY, toX, toY, strokeWidth } = args;
+
+      const dx = toX - fromX;
+      const dy = toY - fromY;
+      const len = Math.hypot(dx, dy);
+      if (len < 0.001) return;
+
+      const ux = dx / len;
+      const uy = dy / len;
+      const px = -uy;
+      const py = ux;
+
+      // Match DiagramCanvas marker settings:
+      // markerWidth=10, markerHeight=7, refX=8, refY=3.5, markerUnits=strokeWidth
+      const tipAdvance = 2 * strokeWidth;
+      const baseBack = 8 * strokeWidth;
+      const halfHeight = 3.5 * strokeWidth;
+
+      const tipX = toX + ux * tipAdvance;
+      const tipY = toY + uy * tipAdvance;
+
+      const baseCenterX = toX - ux * baseBack;
+      const baseCenterY = toY - uy * baseBack;
+
+      const baseTopX = baseCenterX + px * halfHeight;
+      const baseTopY = baseCenterY + py * halfHeight;
+      const baseBottomX = baseCenterX - px * halfHeight;
+      const baseBottomY = baseCenterY - py * halfHeight;
+
+      ctx.beginPath();
+      ctx.moveTo(tipX, tipY);
+      ctx.lineTo(baseTopX, baseTopY);
+      ctx.lineTo(baseBottomX, baseBottomY);
+      ctx.closePath();
+      ctx.fill();
+    };
+
+    const drawArrowsOnOverlay = (rootEl: HTMLElement) => {
+      const overlay = window.document.createElement("canvas");
+      overlay.dataset.exportLayer = "arrows";
+      overlay.className = "absolute left-0 top-0 pointer-events-none";
+      overlay.style.zIndex = "20";
+
+      const cssWidth = rootEl.clientWidth;
+      const cssHeight = rootEl.clientHeight;
+      const dpr = window.devicePixelRatio || 1;
+      overlay.width = Math.max(1, Math.round(cssWidth * dpr));
+      overlay.height = Math.max(1, Math.round(cssHeight * dpr));
+      overlay.style.width = `${cssWidth}px`;
+      overlay.style.height = `${cssHeight}px`;
+
+      rootEl.appendChild(overlay);
+      const ctx = overlay.getContext("2d");
+      if (!ctx) {
+        return () => overlay.remove();
+      }
+
+      ctx.scale(dpr, dpr);
+
+      for (const element of diagram.elements) {
+        if (element.type !== "arrow" && element.type !== "line") continue;
+
+        const startX =
+          "startX" in element && typeof element.startX === "number"
+            ? element.startX
+            : element.x;
+        const startY =
+          "startY" in element && typeof element.startY === "number"
+            ? element.startY
+            : element.y;
+        const endX =
+          "endX" in element && typeof element.endX === "number"
+            ? element.endX
+            : element.x + element.width;
+        const endY =
+          "endY" in element && typeof element.endY === "number"
+            ? element.endY
+            : element.y + element.height;
+
+        const style = (element as unknown as { style?: string }).style ?? "solid";
+        const strokeWidth = Math.max(1, element.strokeWidth);
+
+        ctx.save();
+        ctx.globalAlpha = element.opacity;
+        ctx.strokeStyle = element.stroke;
+        ctx.fillStyle = element.stroke;
+        ctx.lineWidth = strokeWidth;
+        ctx.lineCap = "round";
+
+        if (style === "dashed") ctx.setLineDash([6, 4]);
+        else if (style === "dotted") ctx.setLineDash([2, 4]);
+        else ctx.setLineDash([]);
+
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+
+        if (element.type === "arrow") {
+          const arrowEnds =
+            (element as unknown as { arrowEnds?: "end" | "both" }).arrowEnds ?? "end";
+          if (arrowEnds === "end" || arrowEnds === "both") {
+            drawArrowhead({
+              ctx,
+              fromX: startX,
+              fromY: startY,
+              toX: endX,
+              toY: endY,
+              strokeWidth,
+            });
+          }
+          if (arrowEnds === "both") {
+            drawArrowhead({
+              ctx,
+              fromX: endX,
+              fromY: endY,
+              toX: startX,
+              toY: startY,
+              strokeWidth,
+            });
+          }
+        }
+
+        ctx.restore();
+      }
+
+      return () => overlay.remove();
+    };
+
+    let cleanupOverlay: (() => void) | null = null;
+
+    try {
+      let clonedMetrics:
+        | {
+            width: number;
+            height: number;
+            borderLeft: number;
+            borderTop: number;
+          }
+        | undefined;
+
+      const canvasRoot = window.document.getElementById("diagram-canvas-root");
+      if (canvasRoot) {
+        cleanupOverlay = drawArrowsOnOverlay(canvasRoot);
+      }
+
+      const result = await html2canvas(exportTarget as HTMLElement, {
+        backgroundColor: "#ffffff",
+        scale: exportScale,
+        useCORS: true,
+        onclone: (clonedDocument) => {
+          const clonedTarget = clonedDocument.getElementById(
+            "diagram-canvas-root",
+          ) as HTMLElement | null;
+          if (clonedTarget) {
+            const rect = clonedTarget.getBoundingClientRect();
+            const win = clonedDocument.defaultView;
+            const cs = win ? win.getComputedStyle(clonedTarget) : null;
+            clonedMetrics = {
+              width: rect.width,
+              height: rect.height,
+              borderLeft: cs ? Number.parseFloat(cs.borderLeftWidth) || 0 : 0,
+              borderTop: cs ? Number.parseFloat(cs.borderTopWidth) || 0 : 0,
+            };
+          }
+
+          clonedDocument.documentElement.style.backgroundColor = "rgb(255, 255, 255)";
+          clonedDocument.documentElement.style.colorScheme = "light";
+          clonedDocument.body.style.backgroundColor = "rgb(255, 255, 255)";
+
+          const styleTag = clonedDocument.createElement("style");
+          styleTag.textContent = `
+            #diagram-canvas-root .bg-white { background-color: rgb(255, 255, 255) !important; }
+            #diagram-canvas-root .bg-slate-100 { background-color: rgb(241, 245, 249) !important; }
+            #diagram-canvas-root .border-slate-300 { border-color: rgb(203, 213, 225) !important; }
+            #diagram-canvas-root .border-sky-400 { border-color: rgb(56, 189, 248) !important; }
+            #diagram-canvas-root .border-transparent { border-color: transparent !important; }
+            #diagram-canvas-root .text-slate-400 { color: rgb(148, 163, 184) !important; }
+            #diagram-canvas-root .text-slate-700 { color: rgb(51, 65, 85) !important; }
+            #diagram-canvas-root .shadow-inner { box-shadow: none !important; }
+            /* Hide SVG arrows/lines during export; we draw them on canvas to match marker sizing reliably. */
+            #diagram-canvas-root svg { opacity: 0 !important; }
+          `;
+          clonedDocument.head.appendChild(styleTag);
+        },
+      });
+
+      const link = window.document.createElement("a");
+      link.download = `${diagram.name || "diagram"}.png`;
+      link.href = result.toDataURL("image/png");
+      link.click();
+    } finally {
+      cleanupOverlay?.();
+      window.getComputedStyle = originalGetComputedStyle;
+    }
   };
 
   const clampContextMenuPosition = (args: { clientX: number; clientY: number }) => {
