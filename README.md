@@ -4,7 +4,7 @@
 
 ## 概要
 
-アーキテクチャダイアグラムを素早く作成し、JSON 形式で保存できる軽量エディターです。まずは UI とローカルストレージ保存にフォーカスし、将来的に Azure Cosmos DB などの保存先を追加する前提で設計しています。
+アーキテクチャダイアグラムを素早く作成し、JSON 形式で保存できる軽量エディターです。ローカルストレージ保存に加え、Azure Cosmos DB を設定するとクラウド保存も利用できます。
 
 ## 主な機能
 
@@ -62,7 +62,19 @@ docker run --rm -p 3000:3000 -e PORT=3000 architecture-diagram-maker
 
 ## Azure サービスとの連携について
 
-現在はローカルストレージ保存のみを実装しています。将来的に Azure Cosmos DB などへ保存する際は、`/api/diagrams` を通じて Azure SDK を利用する設計に拡張する予定です。
+`/api/diagrams` で Azure Cosmos DB への保存・復元に対応しています。環境変数を設定しない場合はローカルストレージにフォールバックします。
+
+### Cosmos DB 設定
+
+以下を設定すると、DefaultAzureCredential を利用して Cosmos DB に接続します。
+
+- `COSMOS_ENDPOINT`
+- `COSMOS_DATABASE`
+- `COSMOS_CONTAINER`
+
+> コンテナのパーティションキーは `/id` を前提としています。
+
+ローカル開発では `az login` 済みの Azure CLI 資格情報を利用します。本番は Azure Container Apps のマネージド ID で実行する想定です。
 
 ## 多言語対応
 

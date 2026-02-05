@@ -4,7 +4,7 @@
 
 ## Overview
 
-A lightweight editor for quickly drafting architecture diagrams and saving them as JSON. The current focus is on UI and local storage, with Azure Cosmos DB integration planned later.
+A lightweight editor for quickly drafting architecture diagrams and saving them as JSON. In addition to local storage, you can enable Azure Cosmos DB for cloud storage.
 
 ## Key Features
 
@@ -62,7 +62,19 @@ Health checks use `/api/health`.
 
 ## Azure Integration
 
-Storage is currently implemented with local storage only. The `/api/diagrams` route is intended for future Azure SDK-based persistence.
+The `/api/diagrams` route supports Azure Cosmos DB persistence. If the environment variables are not set, it falls back to local storage.
+
+### Cosmos DB setup
+
+Set the following to enable Cosmos DB via DefaultAzureCredential:
+
+- `COSMOS_ENDPOINT`
+- `COSMOS_DATABASE`
+- `COSMOS_CONTAINER`
+
+> The container partition key is expected to be `/id`.
+
+For local development, use Azure CLI credentials (`az login`). In production, run with a managed identity in Azure Container Apps.
 
 ## Localization
 
