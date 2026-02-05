@@ -53,6 +53,9 @@ Architecture Diagram Maker is a lightweight editor for drafting architecture dia
 - Production uses managed identity on Azure Container Apps
 - No secrets or connection strings are embedded in code
 
-## Related
+## Related Docs
 
-- See [docs/operations-en.md](operations-en.md) for operational guidance.
+- [docs/architecture-diagram-en.md](architecture-diagram-en.md): Architecture diagram
+- [docs/technology-en.md](technology-en.md): Technology stack overview
+- [docs/features-en.md](features-en.md): Implemented features
+- [docs/operations-en.md](operations-en.md): Operational guidance (detailed)

@@ -53,6 +53,9 @@ Architecture Diagram Maker は、アーキテクチャ図を素早く作成し�
 - 本番: Azure Container Apps のマネージド ID を利用
 - 接続文字列や秘密情報はコードに含めない
 
-## 参考
+## 関連ドキュメント
 
-- 運用手順は [docs/operations.md](operations.md) を参照してください。
+- [docs/architecture-diagram.md](architecture-diagram.md): アーキテクチャダイアグラム
+- [docs/technology.md](technology.md): 利用技術の解説
+- [docs/features.md](features.md): 実装済み機能一覧
+- [docs/operations.md](operations.md): 運用手順 (詳細)
