@@ -9,6 +9,8 @@ interface DiagramCanvasProps {
   emptyMessage: string;
   onSelect: (ids: string[]) => void;
   onUpdate: (id: string, updates: Partial<DiagramElement>) => void;
+  onInteractionStart?: () => void;
+  onInteractionEnd?: () => void;
   onMoveSelection?: (args: {
     ids: string[];
     deltaX: number;
@@ -62,6 +64,8 @@ const Arrow = ({
   selectedIds,
   onMoveSelection,
   selectionIdsForDrag,
+  onInteractionStart,
+  onInteractionEnd,
 }: {
   element: Extract<DiagramElement, { type: "arrow" | "line" }>;
   selected: boolean;
@@ -71,6 +75,8 @@ const Arrow = ({
   selectedIds: string[];
   onMoveSelection?: (args: { ids: string[]; deltaX: number; deltaY: number }) => void;
   selectionIdsForDrag: string[];
+  onInteractionStart?: () => void;
+  onInteractionEnd?: () => void;
 }) => {
   const getLinePoints = (target: typeof element) => {
     const startX =
@@ -176,6 +182,7 @@ const Arrow = ({
 
     const handlePointerUp = () => {
       setDragHandle(null);
+      onInteractionEnd?.();
     };
 
     window.addEventListener("pointermove", handlePointerMove);
@@ -202,6 +209,7 @@ const Arrow = ({
 
     const handlePointerUp = () => {
       setDragLine(null);
+      onInteractionEnd?.();
     };
 
     window.addEventListener("pointermove", handlePointerMove);
@@ -225,6 +233,7 @@ const Arrow = ({
 
     const handlePointerUp = () => {
       setGroupDrag(null);
+      onInteractionEnd?.();
     };
 
     window.addEventListener("pointermove", handlePointerMove);
@@ -242,6 +251,7 @@ const Arrow = ({
     event.preventDefault();
     event.stopPropagation();
     onSelect();
+    onInteractionStart?.();
 
     const pointXAbs = which === "start" ? startXAbs : endXAbs;
     const pointYAbs = which === "start" ? startYAbs : endYAbs;
@@ -293,6 +303,7 @@ const Arrow = ({
           event.preventDefault();
           event.stopPropagation();
           onSelect();
+          onInteractionStart?.();
           if (event.button !== 0) return;
           setDragHandle(null);
           if (isMultiSelected) {
@@ -387,6 +398,8 @@ const Draggable = ({
   selectedIds,
   onMoveSelection,
   selectionIdsForDrag,
+  onInteractionStart,
+  onInteractionEnd,
 }: {
   element: DiagramElement;
   selected: boolean;
@@ -397,6 +410,8 @@ const Draggable = ({
   selectedIds: string[];
   onMoveSelection?: (args: { ids: string[]; deltaX: number; deltaY: number }) => void;
   selectionIdsForDrag: string[];
+  onInteractionStart?: () => void;
+  onInteractionEnd?: () => void;
 }) => {
   const [dragging, setDragging] = useState(false);
   const [origin, setOrigin] = useState({ x: 0, y: 0 });
@@ -420,6 +435,7 @@ const Draggable = ({
     event.preventDefault();
     event.stopPropagation();
     onSelect();
+    onInteractionStart?.();
 
     // Only start dragging for primary button.
     // (Right click is used for the context menu.)
@@ -457,6 +473,7 @@ const Draggable = ({
     } catch {
       // no-op
     }
+    onInteractionEnd?.();
   };
 
   const isResizable =
@@ -503,6 +520,7 @@ const Draggable = ({
 
     const handlePointerUp = () => {
       setResizeState(null);
+      onInteractionEnd?.();
     };
 
     window.addEventListener("pointermove", handlePointerMove);
@@ -520,6 +538,7 @@ const Draggable = ({
     event.preventDefault();
     event.stopPropagation();
     onSelect();
+    onInteractionStart?.();
     setDragging(false);
     setResizeState({
       handle,
@@ -594,6 +613,8 @@ export default function DiagramCanvas({
   emptyMessage,
   onSelect,
   onUpdate,
+  onInteractionStart,
+  onInteractionEnd,
   onMoveSelection,
   onOpenContextMenu,
 }: DiagramCanvasProps) {
@@ -715,6 +736,8 @@ export default function DiagramCanvas({
               selectedIds={selectedIds}
               onMoveSelection={onMoveSelection}
               selectionIdsForDrag={selectionIdsForDrag}
+              onInteractionStart={onInteractionStart}
+              onInteractionEnd={onInteractionEnd}
             />
           );
         }
@@ -732,6 +755,8 @@ export default function DiagramCanvas({
             selectedIds={selectedIds}
             onMoveSelection={onMoveSelection}
             selectionIdsForDrag={selectionIdsForDrag}
+            onInteractionStart={onInteractionStart}
+            onInteractionEnd={onInteractionEnd}
           >
             {element.type === "icon" && (
               <div className="flex h-full w-full flex-col items-center justify-center gap-2">

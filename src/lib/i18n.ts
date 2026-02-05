@@ -80,6 +80,12 @@ const messages = {
     settingsTitle: "設定",
     settingsBody:
       "保存先は現在ブラウザのローカルストレージのみです。",
+    historyLimitTitle: "履歴保存数",
+    historyLimitBody:
+      "Undo/Redo の履歴をメモリに保持する件数を設定します。",
+    historyLimitLabel: "保存件数",
+    historyLimitHint:
+      "既定は 100 件（NEXT_PUBLIC_HISTORY_LIMIT で上書き可能）。",
     aboutTitle: "アプリ概要",
     aboutBody:
       "アーキテクチャ図を素早く作成するための軽量エディターです。",
@@ -186,6 +192,12 @@ const messages = {
     storageEmpty: "No saved diagrams yet.",
     settingsTitle: "Settings",
     settingsBody: "Storage is currently limited to local storage.",
+    historyLimitTitle: "History limit",
+    historyLimitBody:
+      "Set how many undo/redo steps are kept in memory.",
+    historyLimitLabel: "Steps to keep",
+    historyLimitHint:
+      "Default is 100 (override with NEXT_PUBLIC_HISTORY_LIMIT).",
     aboutTitle: "About",
     aboutBody: "A lightweight editor for drafting architecture diagrams.",
     itemsTitle: "Icon catalog",
