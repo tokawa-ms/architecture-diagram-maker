@@ -488,33 +488,25 @@ export default function EditorPage() {
               ? updates.startX
               : "x" in updates && typeof updates.x === "number"
                 ? updates.x
-              : "startX" in element
-                ? element.startX
-                : element.x;
+              : element.startX;
           const nextStartY =
             "startY" in updates && typeof updates.startY === "number"
               ? updates.startY
               : "y" in updates && typeof updates.y === "number"
                 ? updates.y
-              : "startY" in element
-                ? element.startY
-                : element.y;
+              : element.startY;
           const nextEndX =
             "endX" in updates && typeof updates.endX === "number"
               ? updates.endX
               : "width" in updates && typeof updates.width === "number"
                 ? nextStartX + updates.width
-              : "endX" in element
-                ? element.endX
-                : element.x + element.width;
+              : element.endX;
           const nextEndY =
             "endY" in updates && typeof updates.endY === "number"
               ? updates.endY
               : "height" in updates && typeof updates.height === "number"
                 ? nextStartY + updates.height
-              : "endY" in element
-                ? element.endY
-                : element.y + element.height;
+              : element.endY;
 
           const merged = { ...element, ...updates } as DiagramElement;
           return {
