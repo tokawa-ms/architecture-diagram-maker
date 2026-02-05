@@ -40,6 +40,10 @@ export interface DiagramTextElement extends DiagramElementBase {
 
 export interface DiagramArrowElement extends DiagramElementBase {
   type: "arrow";
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
   stroke: string;
   strokeWidth: number;
   style: ArrowStyle;
@@ -48,6 +52,10 @@ export interface DiagramArrowElement extends DiagramElementBase {
 
 export interface DiagramLineElement extends DiagramElementBase {
   type: "line";
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
   stroke: string;
   strokeWidth: number;
   style: ArrowStyle;

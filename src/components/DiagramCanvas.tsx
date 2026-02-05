@@ -61,6 +61,26 @@ const Arrow = ({
   onUpdate: (updates: Partial<DiagramElement>) => void;
   onOpenContextMenu?: (args: { clientX: number; clientY: number }) => void;
 }) => {
+  const getLinePoints = (target: typeof element) => {
+    const startX =
+      "startX" in target && typeof target.startX === "number"
+        ? target.startX
+        : target.x;
+    const startY =
+      "startY" in target && typeof target.startY === "number"
+        ? target.startY
+        : target.y;
+    const endX =
+      "endX" in target && typeof target.endX === "number"
+        ? target.endX
+        : target.x + target.width;
+    const endY =
+      "endY" in target && typeof target.endY === "number"
+        ? target.endY
+        : target.y + target.height;
+    return { startX, startY, endX, endY };
+  };
+
   const strokeDasharray = useMemo(() => {
     const style = (element as unknown as { style?: string }).style;
     if (style === "dashed") {
@@ -93,12 +113,15 @@ const Arrow = ({
     startClientY: number;
     startX: number;
     startY: number;
+    startEndX: number;
+    startEndY: number;
   }>(null);
 
-  const startXAbs = element.x;
-  const startYAbs = element.y;
-  const endXAbs = element.x + element.width;
-  const endYAbs = element.y + element.height;
+  const points = getLinePoints(element);
+  const startXAbs = points.startX;
+  const startYAbs = points.startY;
+  const endXAbs = points.endX;
+  const endYAbs = points.endY;
 
   const minXAbs = Math.min(startXAbs, endXAbs);
   const minYAbs = Math.min(startYAbs, endYAbs);
@@ -118,20 +141,20 @@ const Arrow = ({
       const nextYAbs = event.clientY - dragHandle.offsetY;
 
       if (dragHandle.which === "start") {
-        const fixedEndXAbs = dragHandle.fixedEndX;
-        const fixedEndYAbs = dragHandle.fixedEndY;
         onUpdate({
-          x: nextXAbs,
-          y: nextYAbs,
-          width: fixedEndXAbs - nextXAbs,
-          height: fixedEndYAbs - nextYAbs,
+          startX: nextXAbs,
+          startY: nextYAbs,
+          endX: dragHandle.fixedEndX,
+          endY: dragHandle.fixedEndY,
         });
         return;
       }
 
       onUpdate({
-        width: nextXAbs - dragHandle.fixedStartX,
-        height: nextYAbs - dragHandle.fixedStartY,
+        startX: dragHandle.fixedStartX,
+        startY: dragHandle.fixedStartY,
+        endX: nextXAbs,
+        endY: nextYAbs,
       });
     };
 
@@ -153,7 +176,12 @@ const Arrow = ({
     const handlePointerMove = (event: PointerEvent) => {
       const dx = event.clientX - dragLine.startClientX;
       const dy = event.clientY - dragLine.startClientY;
-      onUpdate({ x: dragLine.startX + dx, y: dragLine.startY + dy });
+      onUpdate({
+        startX: dragLine.startX + dx,
+        startY: dragLine.startY + dy,
+        endX: dragLine.startEndX + dx,
+        endY: dragLine.startEndY + dy,
+      });
     };
 
     const handlePointerUp = () => {
@@ -230,8 +258,10 @@ const Arrow = ({
           setDragLine({
             startClientX: event.clientX,
             startClientY: event.clientY,
-            startX: element.x,
-            startY: element.y,
+            startX: startXAbs,
+            startY: startYAbs,
+            startEndX: endXAbs,
+            startEndY: endYAbs,
           });
         }}
       />
@@ -497,6 +527,7 @@ export default function DiagramCanvas({
 }: DiagramCanvasProps) {
   return (
     <div
+      id="diagram-canvas-root"
       className="relative isolate z-0 h-[520px] w-full rounded-2xl border border-dashed border-slate-300 bg-white shadow-inner"
       onPointerDown={() => onSelect(null)}
     >
