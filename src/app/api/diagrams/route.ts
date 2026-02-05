@@ -68,8 +68,7 @@ export async function GET(request: Request) {
       .query<StoredDiagramSummary>(
         {
           query: "SELECT c.id, c.name, c.updatedAt FROM c",
-        },
-        { enableCrossPartitionQuery: true },
+        }
       )
       .fetchAll();
     const items = (resources ?? []).sort((a, b) =>
