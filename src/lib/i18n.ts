@@ -92,7 +92,7 @@ const messages = {
     itemsTitle: "アイコンカタログ",
     itemsBody:
       "public/icons 配下のSVG/PNGをパレットに表示します（サンプル icons-sample は任意）。",
-    footerText: "Microsoft Azure の利用を前提に設計されています。",
+    footerText: "",
     languageLabel: "言語",
     loadSample: "サンプル読み込み",
     storageKeyLabel: "保存キー",
@@ -204,7 +204,7 @@ const messages = {
     itemsTitle: "Icon catalog",
     itemsBody:
       "SVG/PNG icons under public/icons appear in the palette (optional icons-sample via env).",
-    footerText: "Designed with Microsoft Azure in mind.",
+    footerText: "",
     languageLabel: "Language",
     loadSample: "Load sample",
     storageKeyLabel: "Storage key",
