@@ -1,4 +1,10 @@
 import type { DiagramDocument, StoredDiagramSummary } from "./types";
+import {
+  isDiagramDocument,
+  normalizeDiagramDocument,
+  serializeDiagram,
+  toStoredSummary,
+} from "./diagram-serialization";
 
 const STORAGE_INDEX_KEY = "architecture-diagram:index";
 const STORAGE_PREFIX = "architecture-diagram:doc:";
@@ -28,89 +34,26 @@ const writeIndex = (items: StoredDiagramSummary[]) => {
   window.localStorage.setItem(STORAGE_INDEX_KEY, JSON.stringify(items));
 };
 
-export const listStoredDiagrams = (): StoredDiagramSummary[] => {
+const listStoredDiagramsLocal = (): StoredDiagramSummary[] => {
   return readIndex().sort((a, b) =>
     new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
   );
 };
 
-export const saveDiagram = (document: DiagramDocument) => {
+const saveDiagramLocal = (document: DiagramDocument) => {
   if (typeof window === "undefined") {
     return;
   }
   console.log("Persisting diagram", document.id);
   const key = toStorageKey(document.id);
   window.localStorage.setItem(key, JSON.stringify(serializeDiagram(document)));
-  const summary: StoredDiagramSummary = {
-    id: document.id,
-    name: document.name,
-    updatedAt: document.updatedAt,
-  };
+  const summary: StoredDiagramSummary = toStoredSummary(document);
   const index = readIndex();
   const existingIndex = index.filter((item) => item.id !== document.id);
   writeIndex([summary, ...existingIndex]);
 };
 
-const normalizeDiagramDocument = (document: DiagramDocument): DiagramDocument => {
-  return {
-    ...document,
-    elements: document.elements.map((element) => {
-      if (element.type !== "arrow" && element.type !== "line") {
-        return element;
-      }
-
-      const fallbackX = typeof element.x === "number" ? element.x : 0;
-      const fallbackY = typeof element.y === "number" ? element.y : 0;
-      const fallbackWidth = typeof element.width === "number" ? element.width : 0;
-      const fallbackHeight = typeof element.height === "number" ? element.height : 0;
-
-      const startX =
-        "startX" in element && typeof element.startX === "number"
-          ? element.startX
-          : fallbackX;
-      const startY =
-        "startY" in element && typeof element.startY === "number"
-          ? element.startY
-          : fallbackY;
-      const endX =
-        "endX" in element && typeof element.endX === "number"
-          ? element.endX
-          : fallbackX + fallbackWidth;
-      const endY =
-        "endY" in element && typeof element.endY === "number"
-          ? element.endY
-          : fallbackY + fallbackHeight;
-
-      return {
-        ...element,
-        startX,
-        startY,
-        endX,
-        endY,
-        x: startX,
-        y: startY,
-        width: endX - startX,
-        height: endY - startY,
-      };
-    }),
-  };
-};
-
-const serializeDiagram = (document: DiagramDocument) => {
-  return {
-    ...document,
-    elements: document.elements.map((element) => {
-      if (element.type !== "arrow" && element.type !== "line") {
-        return element;
-      }
-
-      const { x, y, width, height, ...rest } = element;
-      return rest;
-    }),
-  };
-};
-
-export const loadDiagram = (id: string): DiagramDocument | null => {
+const loadDiagramLocal = (id: string): DiagramDocument | null => {
   if (typeof window === "undefined") {
     return null;
   }
@@ -130,12 +73,83 @@ export const loadDiagram = (id: string): DiagramDocument | null => {
   }
 };
 
-export const deleteDiagram = (id: string) => {
+const deleteDiagramLocal = (id: string) => {
   if (typeof window === "undefined") {
     return;
   }
   window.localStorage.removeItem(toStorageKey(id));
   writeIndex(readIndex().filter((item) => item.id !== id));
+};
+
+const fetchApi = async <T>(input: RequestInfo, init?: RequestInit) => {
+  try {
+    const response = await fetch(input, init);
+    if (!response.ok) {
+      return null;
+    }
+    return (await response.json()) as T;
+  } catch (error) {
+    console.warn("Failed to reach diagram API", error);
+    return null;
+  }
+};
+
+export const listStoredDiagrams = async (): Promise<StoredDiagramSummary[]> => {
+  if (typeof window === "undefined") {
+    return [];
+  }
+  const response = await fetchApi<{ items?: StoredDiagramSummary[] }>(
+    "/api/diagrams",
+  );
+  if (response?.items && Array.isArray(response.items)) {
+    return response.items.sort((a, b) =>
+      new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+    );
+  }
+  return listStoredDiagramsLocal();
+};
+
+export const saveDiagram = async (document: DiagramDocument) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+  const payload = serializeDiagram(document);
+  const response = await fetchApi<{ ok?: boolean }>("/api/diagrams", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ document: payload }),
+  });
+  if (response?.ok) {
+    return;
+  }
+  saveDiagramLocal(document);
+};
+
+export const loadDiagram = async (id: string): Promise<DiagramDocument | null> => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const response = await fetchApi<{ document?: DiagramDocument }>(
+    `/api/diagrams?id=${encodeURIComponent(id)}`,
+  );
+  if (response?.document && isDiagramDocument(response.document)) {
+    return normalizeDiagramDocument(response.document);
+  }
+  return loadDiagramLocal(id);
+};
+
+export const deleteDiagram = async (id: string) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+  const response = await fetchApi<{ ok?: boolean }>(
+    `/api/diagrams?id=${encodeURIComponent(id)}`,
+    { method: "DELETE" },
+  );
+  if (response?.ok) {
+    return;
+  }
+  deleteDiagramLocal(id);
 };
 
 export const exportDiagramJson = (document: DiagramDocument) =>
@@ -152,18 +166,4 @@ export const importDiagramJson = (value: string): DiagramDocument | null => {
     console.error("Failed to import diagram JSON", error);
     return null;
   }
-};
-
-const isDiagramDocument = (value: unknown): value is DiagramDocument => {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-  const doc = value as DiagramDocument;
-  return (
-    typeof doc.id === "string" &&
-    typeof doc.name === "string" &&
-    typeof doc.createdAt === "string" &&
-    typeof doc.updatedAt === "string" &&
-    Array.isArray(doc.elements)
-  );
 };

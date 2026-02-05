@@ -1,0 +1,69 @@
+# 運用ガイド
+
+日本語 | [English](operations-en.md)
+
+## ローカル開発
+
+1. `.env.template` を `.env` にコピー
+2. `npm install` で依存関係を導入
+3. `npm run dev` で起動
+4. `http://localhost:3000/editor` にアクセス
+
+## アイコン管理
+
+- 本番アイコンは `public/icons` 配下に配置
+- `public/icons` は Git 管理外 ( `.gitignore` )
+- `ICONS_SAMPLE_ENABLED` で `public/icons-sample` の表示を切り替え
+
+## 保存と復元
+
+- 既定はブラウザのローカルストレージ
+- Cosmos DB が有効な場合は `/api/diagrams` 経由でクラウド保存
+- JSON のエクスポート/インポートで簡易バックアップが可能
+
+## Azure Container Apps でのホスト手順 (詳細)
+
+1. Azure Container Registry (ACR) を作成
+2. イメージをビルドして ACR に push
+3. Azure Container Apps 環境とアプリを作成
+4. 環境変数を設定
+   - `PORT` (既定 3000)
+   - `NODE_ENV=production`
+   - Cosmos DB 利用時は `COSMOS_ENDPOINT` / `COSMOS_DATABASE` / `COSMOS_CONTAINER`
+5. ヘルスチェックに `/api/health` を設定
+6. アプリのマネージド ID を有効化
+7. ログは Log Analytics / Application Insights に接続
+
+> このアプリは単一コンテナで `next start` を実行する構成です。
+
+## Cosmos DB の設定 (詳細)
+
+### リソース準備
+
+- Azure Cosmos DB (SQL API) のアカウントを作成
+- データベースとコンテナを作成
+  - パーティションキー: `/id`
+  - 予測スループットに応じて RU を設定
+
+### 認証 (AAD)
+
+- ローカル: `az login` 済みの Azure CLI 資格情報を利用
+- 本番: Container Apps のマネージド ID を利用
+- RBAC で次のいずれかを付与
+  - 読み書き: `Cosmos DB Built-in Data Contributor`
+  - 読み取りのみ: `Cosmos DB Built-in Data Reader`
+
+### 接続設定
+
+- `.env` もしくは ACA の環境変数に以下を設定
+  - `COSMOS_ENDPOINT`
+  - `COSMOS_DATABASE`
+  - `COSMOS_CONTAINER`
+
+> Cosmos DB は 2 MB のアイテム上限があるため、1 図が極端に大きくならないよう注意してください。
+
+## トラブルシューティング
+
+- Cosmos DB 接続エラー時はサーバーログの `diagnostics` を確認
+- 429 が発生する場合は RU を引き上げるか保存頻度を調整
+- API から 501 が返る場合は Cosmos DB の環境変数が未設定

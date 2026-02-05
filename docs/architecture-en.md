@@ -1,0 +1,58 @@
+# Architecture Overview
+
+[日本語](architecture.md) | English
+
+## Purpose
+
+Architecture Diagram Maker is a lightweight editor for drafting architecture diagrams and saving them as JSON. It supports local storage by default and enables Azure Cosmos DB for cloud storage when configured.
+
+## Core Components
+
+- Next.js (App Router, TypeScript)
+  - Pages: `/`, `/editor`, `/items`, `/settings`, `/about`
+  - API: `/api/health`, `/api/icons`, `/api/diagrams`
+- UI Components
+  - Header/footer, tool panels, palette, inspector, and more
+- Data Layer
+  - Local storage by default
+  - Cosmos DB via API when configured
+
+## Data Flow
+
+1. Users create/update diagrams on the canvas
+2. Save posts to `/api/diagrams`
+3. If Cosmos DB is not configured, the client falls back to local storage
+4. List/load/delete calls use GET/DELETE on `/api/diagrams`
+
+## Cosmos DB Integration Notes
+
+- SDK: `@azure/cosmos` + `DefaultAzureCredential`
+- Required env vars: `COSMOS_ENDPOINT`, `COSMOS_DATABASE`, `COSMOS_CONTAINER`
+- Partition key: `/id`
+- Listing query: `SELECT c.id, c.name, c.updatedAt FROM c`
+- Errors are logged with diagnostic details for troubleshooting
+
+> Cosmos DB enforces a 2 MB item limit. Keep each diagram payload within this bound.
+
+## Localization
+
+- Language selection persists via `?lang=ja` / `?lang=en`
+- Switcher in the header updates the query param
+- Strings are centralized in `src/lib/i18n.ts`
+
+## Configuration
+
+- `PORT`: listening port on ACA (default 3000)
+- `NODE_ENV`: development / production
+- `ICONS_SAMPLE_ENABLED`: show `public/icons-sample` in the palette
+- Cosmos DB env vars are optional and only needed for cloud persistence
+
+## Security and Auth
+
+- Local dev uses Azure CLI (`az login`) via AAD
+- Production uses managed identity on Azure Container Apps
+- No secrets or connection strings are embedded in code
+
+## Related
+
+- See [docs/operations-en.md](operations-en.md) for operational guidance.
