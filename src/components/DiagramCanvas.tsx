@@ -5,10 +5,15 @@ import type { DiagramElement } from "@/lib/types";
 
 interface DiagramCanvasProps {
   elements: DiagramElement[];
-  selectedId: string | null;
+  selectedIds: string[];
   emptyMessage: string;
-  onSelect: (id: string | null) => void;
+  onSelect: (ids: string[]) => void;
   onUpdate: (id: string, updates: Partial<DiagramElement>) => void;
+  onMoveSelection?: (args: {
+    ids: string[];
+    deltaX: number;
+    deltaY: number;
+  }) => void;
   onOpenContextMenu?: (args: {
     elementId: string;
     clientX: number;
@@ -54,12 +59,18 @@ const Arrow = ({
   onSelect,
   onUpdate,
   onOpenContextMenu,
+  selectedIds,
+  onMoveSelection,
+  selectionIdsForDrag,
 }: {
   element: Extract<DiagramElement, { type: "arrow" | "line" }>;
   selected: boolean;
   onSelect: () => void;
   onUpdate: (updates: Partial<DiagramElement>) => void;
   onOpenContextMenu?: (args: { clientX: number; clientY: number }) => void;
+  selectedIds: string[];
+  onMoveSelection?: (args: { ids: string[]; deltaX: number; deltaY: number }) => void;
+  selectionIdsForDrag: string[];
 }) => {
   const getLinePoints = (target: typeof element) => {
     const startX =
@@ -115,6 +126,11 @@ const Arrow = ({
     startY: number;
     startEndX: number;
     startEndY: number;
+  }>(null);
+
+  const [groupDrag, setGroupDrag] = useState<null | {
+    lastClientX: number;
+    lastClientY: number;
   }>(null);
 
   const points = getLinePoints(element);
@@ -196,6 +212,29 @@ const Arrow = ({
     };
   }, [dragLine, onUpdate]);
 
+  useEffect(() => {
+    if (!groupDrag) return;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const dx = event.clientX - groupDrag.lastClientX;
+      const dy = event.clientY - groupDrag.lastClientY;
+      if (dx === 0 && dy === 0) return;
+      setGroupDrag({ lastClientX: event.clientX, lastClientY: event.clientY });
+      onMoveSelection?.({ ids: selectionIdsForDrag, deltaX: dx, deltaY: dy });
+    };
+
+    const handlePointerUp = () => {
+      setGroupDrag(null);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [groupDrag, onMoveSelection, selectionIdsForDrag]);
+
   const startDragEndpoint = (
     which: "start" | "end",
     event: React.PointerEvent<SVGCircleElement>,
@@ -219,6 +258,7 @@ const Arrow = ({
   };
 
   const hitStrokeWidth = Math.max(16, element.strokeWidth * 8);
+  const isMultiSelected = selectionIdsForDrag.length > 1;
 
   return (
     <svg
@@ -255,6 +295,14 @@ const Arrow = ({
           onSelect();
           if (event.button !== 0) return;
           setDragHandle(null);
+          if (isMultiSelected) {
+            setDragLine(null);
+            setGroupDrag({
+              lastClientX: event.clientX,
+              lastClientY: event.clientY,
+            });
+            return;
+          }
           setDragLine({
             startClientX: event.clientX,
             startClientY: event.clientY,
@@ -336,6 +384,9 @@ const Draggable = ({
   onUpdate,
   onOpenContextMenu,
   children,
+  selectedIds,
+  onMoveSelection,
+  selectionIdsForDrag,
 }: {
   element: DiagramElement;
   selected: boolean;
@@ -343,9 +394,16 @@ const Draggable = ({
   onUpdate: (updates: Partial<DiagramElement>) => void;
   onOpenContextMenu?: (args: { clientX: number; clientY: number }) => void;
   children: React.ReactNode;
+  selectedIds: string[];
+  onMoveSelection?: (args: { ids: string[]; deltaX: number; deltaY: number }) => void;
+  selectionIdsForDrag: string[];
 }) => {
   const [dragging, setDragging] = useState(false);
   const [origin, setOrigin] = useState({ x: 0, y: 0 });
+  const [groupDrag, setGroupDrag] = useState<null | {
+    lastClientX: number;
+    lastClientY: number;
+  }>(null);
   const [resizeState, setResizeState] = useState<null | {
     handle: "nw" | "ne" | "sw" | "se";
     startClientX: number;
@@ -368,6 +426,10 @@ const Draggable = ({
     if (event.button !== 0) return;
 
     event.currentTarget.setPointerCapture(event.pointerId);
+    if (selectionIdsForDrag.length > 1) {
+      setGroupDrag({ lastClientX: event.clientX, lastClientY: event.clientY });
+      return;
+    }
     setDragging(true);
     setOrigin({ x: event.clientX - element.x, y: event.clientY - element.y });
   };
@@ -375,12 +437,21 @@ const Draggable = ({
   const handlePointerMove = (
     event: React.PointerEvent<HTMLDivElement>,
   ) => {
+    if (groupDrag) {
+      const dx = event.clientX - groupDrag.lastClientX;
+      const dy = event.clientY - groupDrag.lastClientY;
+      if (dx === 0 && dy === 0) return;
+      setGroupDrag({ lastClientX: event.clientX, lastClientY: event.clientY });
+      onMoveSelection?.({ ids: selectionIdsForDrag, deltaX: dx, deltaY: dy });
+      return;
+    }
     if (!dragging) return;
     onUpdate({ x: event.clientX - origin.x, y: event.clientY - origin.y });
   };
 
   const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
     setDragging(false);
+    setGroupDrag(null);
     try {
       event.currentTarget.releasePointerCapture(event.pointerId);
     } catch {
@@ -519,35 +590,131 @@ const Draggable = ({
 
 export default function DiagramCanvas({
   elements,
-  selectedId,
+  selectedIds,
   emptyMessage,
   onSelect,
   onUpdate,
+  onMoveSelection,
   onOpenContextMenu,
 }: DiagramCanvasProps) {
+  const [selectionBox, setSelectionBox] = useState<null | {
+    startX: number;
+    startY: number;
+    currentX: number;
+    currentY: number;
+  }>(null);
+
+  const getElementBounds = (element: DiagramElement) => {
+    const minX = Math.min(element.x, element.x + element.width);
+    const maxX = Math.max(element.x, element.x + element.width);
+    const minY = Math.min(element.y, element.y + element.height);
+    const maxY = Math.max(element.y, element.y + element.height);
+    return { minX, minY, maxX, maxY };
+  };
+
+  const getSelectionBoxStyle = () => {
+    if (!selectionBox) return null;
+    const left = Math.min(selectionBox.startX, selectionBox.currentX);
+    const top = Math.min(selectionBox.startY, selectionBox.currentY);
+    const width = Math.abs(selectionBox.currentX - selectionBox.startX);
+    const height = Math.abs(selectionBox.currentY - selectionBox.startY);
+    return { left, top, width, height };
+  };
+
+  const selectionBoxStyle = getSelectionBoxStyle();
+
+  const getGroupSelectionIds = (element: DiagramElement) => {
+    if (!element.groupId) return [element.id];
+    return elements
+      .filter((item) => item.groupId === element.groupId)
+      .map((item) => item.id);
+  };
+
   return (
     <div
       id="diagram-canvas-root"
       className="relative isolate z-0 h-[520px] w-full rounded-2xl border border-dashed border-slate-300 bg-white shadow-inner"
-      onPointerDown={() => onSelect(null)}
+      onPointerDown={(event) => {
+        if (event.button !== 0) return;
+        if (event.target !== event.currentTarget) return;
+        const rect = event.currentTarget.getBoundingClientRect();
+        const startX = event.clientX - rect.left;
+        const startY = event.clientY - rect.top;
+        event.currentTarget.setPointerCapture(event.pointerId);
+        setSelectionBox({ startX, startY, currentX: startX, currentY: startY });
+        onSelect([]);
+      }}
+      onPointerMove={(event) => {
+        if (!selectionBox) return;
+        const rect = event.currentTarget.getBoundingClientRect();
+        const currentX = event.clientX - rect.left;
+        const currentY = event.clientY - rect.top;
+        setSelectionBox((prev) =>
+          prev ? { ...prev, currentX, currentY } : prev,
+        );
+      }}
+      onPointerUp={(event) => {
+        if (!selectionBox) return;
+        const rect = event.currentTarget.getBoundingClientRect();
+        const currentX = event.clientX - rect.left;
+        const currentY = event.clientY - rect.top;
+        const left = Math.min(selectionBox.startX, currentX);
+        const top = Math.min(selectionBox.startY, currentY);
+        const right = Math.max(selectionBox.startX, currentX);
+        const bottom = Math.max(selectionBox.startY, currentY);
+
+        const nextSelected = elements
+          .filter((element) => {
+            const bounds = getElementBounds(element);
+            const intersects =
+              bounds.maxX >= left &&
+              bounds.minX <= right &&
+              bounds.maxY >= top &&
+              bounds.minY <= bottom;
+            return intersects;
+          })
+          .map((element) => element.id);
+
+        onSelect(nextSelected);
+        setSelectionBox(null);
+        try {
+          event.currentTarget.releasePointerCapture(event.pointerId);
+        } catch {
+          // no-op
+        }
+      }}
+      onPointerCancel={() => setSelectionBox(null)}
     >
       {elements.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center text-sm text-slate-400">
           {emptyMessage}
         </div>
       )}
+      {selectionBoxStyle && (
+        <div
+          className="pointer-events-none absolute border border-sky-400 bg-sky-100/40"
+          style={selectionBoxStyle}
+        />
+      )}
       {elements.map((element) => {
+        const selectionIdsForDrag =
+          selectedIds.length > 1 && selectedIds.includes(element.id)
+            ? selectedIds
+            : getGroupSelectionIds(element);
         if (element.type === "arrow" || element.type === "line") {
           return (
             <Arrow
               key={element.id}
               element={element}
-              selected={selectedId === element.id}
-              onSelect={() => onSelect(element.id)}
+              selected={selectedIds.includes(element.id)}
+              onSelect={() => onSelect(selectionIdsForDrag)}
               onUpdate={(updates) => onUpdate(element.id, updates)}
               onOpenContextMenu={(args) =>
                 onOpenContextMenu?.({ elementId: element.id, ...args })
               }
+              selectedIds={selectedIds}
+              onMoveSelection={onMoveSelection}
+              selectionIdsForDrag={selectionIdsForDrag}
             />
           );
         }
@@ -556,12 +723,15 @@ export default function DiagramCanvas({
           <Draggable
             key={element.id}
             element={element}
-            selected={selectedId === element.id}
-            onSelect={() => onSelect(element.id)}
+            selected={selectedIds.includes(element.id)}
+            onSelect={() => onSelect(selectionIdsForDrag)}
             onUpdate={(updates) => onUpdate(element.id, updates)}
             onOpenContextMenu={(args) =>
               onOpenContextMenu?.({ elementId: element.id, ...args })
             }
+            selectedIds={selectedIds}
+            onMoveSelection={onMoveSelection}
+            selectionIdsForDrag={selectionIdsForDrag}
           >
             {element.type === "icon" && (
               <div className="flex h-full w-full flex-col items-center justify-center gap-2">

@@ -14,6 +14,7 @@ export interface DiagramElementBase {
   rotation: number;
   zIndex: number;
   opacity: number;
+  groupId?: string;
 }
 
 export interface DiagramIconElement extends DiagramElementBase {
