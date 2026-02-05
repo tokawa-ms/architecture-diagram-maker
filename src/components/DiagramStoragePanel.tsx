@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { DiagramDocument, StoredDiagramSummary } from "@/lib/types";
 import {
   deleteDiagram,
@@ -23,6 +23,7 @@ interface DiagramStoragePanelProps {
     storageNew: string;
     storageDelete: string;
     storageImport: string;
+    storageImportFile: string;
     storageExport: string;
     storageCopy: string;
     storageCopied: string;
@@ -43,7 +44,8 @@ export default function DiagramStoragePanel({
     listStoredDiagrams(),
   );
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [importValue, setImportValue] = useState("");
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const refreshItems = () => {
     setItems(listStoredDiagrams());
@@ -75,15 +77,26 @@ export default function DiagramStoragePanel({
     }
   };
 
-  const handleImport = () => {
-    const document = importDiagramJson(importValue);
-    if (!document) {
+  const handleImport = async () => {
+    if (!importFile) {
       return;
     }
-    saveDiagram(document);
-    refreshItems();
-    setImportValue("");
-    onLoad(document);
+    try {
+      const payload = await importFile.text();
+      const document = importDiagramJson(payload);
+      if (!document) {
+        return;
+      }
+      saveDiagram(document);
+      refreshItems();
+      setImportFile(null);
+      if (importInputRef.current) {
+        importInputRef.current.value = "";
+      }
+      onLoad(document);
+    } catch (error) {
+      console.error("Failed to import diagram JSON file", error);
+    }
   };
 
   return (
@@ -125,15 +138,27 @@ export default function DiagramStoragePanel({
           <label className="text-xs font-semibold text-slate-600">
             {labels.storageImport}
           </label>
-          <textarea
-            className="mt-2 h-20 w-full rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-700"
-            value={importValue}
-            onChange={(event) => setImportValue(event.target.value)}
-          />
+          <div className="mt-2 flex flex-col gap-2">
+            <input
+              ref={importInputRef}
+              type="file"
+              accept="application/json,.json"
+              className="w-full rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-sky-500 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-white hover:file:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-200"
+              aria-label={labels.storageImportFile}
+              onChange={(event) => {
+                const file = event.target.files?.[0] ?? null;
+                setImportFile(file);
+              }}
+            />
+            <span className="text-[11px] text-slate-400">
+              {labels.storageImportFile}
+            </span>
+          </div>
           <button
             type="button"
-            className="mt-2 rounded-md bg-slate-800 px-3 py-1 text-xs font-semibold text-white hover:bg-slate-900"
+            className="mt-2 rounded-md bg-slate-800 px-3 py-1 text-xs font-semibold text-white hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-300"
             onClick={handleImport}
+            disabled={!importFile}
           >
             {labels.storageImport}
           </button>
