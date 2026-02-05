@@ -32,6 +32,12 @@ const toDisplayName = (fileBaseName: string) => {
     .join(" ");
 };
 
+const encodePath = (value: string) =>
+  value
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+
 const walkIcons = async (args: {
   fsRoot: string;
   urlRoot: string;
@@ -79,13 +85,14 @@ const walkIcons = async (args: {
 
     const relPath = path.join(relDir, entry.name);
     const relPosix = relPath.split(path.sep).join("/");
+    const relEncoded = encodePath(relPosix);
     const base = path.basename(entry.name, ext);
     const folder = path.posix.dirname(relPosix) === "." ? "" : path.posix.dirname(relPosix);
 
     items.push({
       id: relPosix,
       name: toDisplayName(base),
-      src: `${args.urlRoot}/${relPosix}`,
+      src: `${args.urlRoot}/${relEncoded}`,
       folder,
     });
   }
