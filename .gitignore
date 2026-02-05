@@ -40,3 +40,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Production icons (local only). Keep placeholders tracked.
+/public/icons/**
+!/public/icons/.gitkeep
+!/public/icons/README.md
+

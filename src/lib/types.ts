@@ -1,6 +1,8 @@
 export type DiagramElementType = "icon" | "box" | "text" | "arrow" | "line";
 
-export type ArrowStyle = "solid" | "dashed" | "dotted";
+export type ArrowStyle = "solid" | "dashed";
+
+export type ArrowEnds = "end" | "both";
 
 export interface DiagramElementBase {
   id: string;
@@ -12,6 +14,7 @@ export interface DiagramElementBase {
   rotation: number;
   zIndex: number;
   opacity: number;
+  groupId?: string;
 }
 
 export interface DiagramIconElement extends DiagramElementBase {
@@ -38,13 +41,22 @@ export interface DiagramTextElement extends DiagramElementBase {
 
 export interface DiagramArrowElement extends DiagramElementBase {
   type: "arrow";
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
   stroke: string;
   strokeWidth: number;
   style: ArrowStyle;
+  arrowEnds?: ArrowEnds;
 }
 
 export interface DiagramLineElement extends DiagramElementBase {
   type: "line";
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
   stroke: string;
   strokeWidth: number;
   style: ArrowStyle;

@@ -4,10 +4,12 @@ import type { DiagramElement } from "@/lib/types";
 
 interface DiagramInspectorProps {
   selected: DiagramElement | null;
+  selectionCount?: number;
   labels: {
     title: string;
     hint: string;
     noSelection: string;
+    multiSelection: string;
     propertyName: string;
     propertyFill: string;
     propertyBorder: string;
@@ -96,6 +98,7 @@ const ColorInput = ({
 
 export default function DiagramInspector({
   selected,
+  selectionCount,
   labels,
   onUpdate,
 }: DiagramInspectorProps) {
@@ -103,7 +106,11 @@ export default function DiagramInspector({
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
         <p className="font-semibold text-slate-700">{labels.title}</p>
-        <p className="mt-2 text-xs text-slate-400">{labels.noSelection}</p>
+        <p className="mt-2 text-xs text-slate-400">
+          {selectionCount && selectionCount > 1
+            ? labels.multiSelection
+            : labels.noSelection}
+        </p>
         <p className="mt-4 text-xs text-slate-400">{labels.hint}</p>
       </div>
     );
