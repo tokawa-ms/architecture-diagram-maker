@@ -40,7 +40,7 @@ export const saveDiagram = (document: DiagramDocument) => {
   }
   console.log("Persisting diagram", document.id);
   const key = toStorageKey(document.id);
-  window.localStorage.setItem(key, JSON.stringify(document));
+  window.localStorage.setItem(key, JSON.stringify(serializeDiagram(document)));
   const summary: StoredDiagramSummary = {
     id: document.id,
     name: document.name,
@@ -49,6 +49,65 @@ export const saveDiagram = (document: DiagramDocument) => {
   const index = readIndex();
   const existingIndex = index.filter((item) => item.id !== document.id);
   writeIndex([summary, ...existingIndex]);
+};
+
+const normalizeDiagramDocument = (document: DiagramDocument): DiagramDocument => {
+  return {
+    ...document,
+    elements: document.elements.map((element) => {
+      if (element.type !== "arrow" && element.type !== "line") {
+        return element;
+      }
+
+      const fallbackX = typeof element.x === "number" ? element.x : 0;
+      const fallbackY = typeof element.y === "number" ? element.y : 0;
+      const fallbackWidth = typeof element.width === "number" ? element.width : 0;
+      const fallbackHeight = typeof element.height === "number" ? element.height : 0;
+
+      const startX =
+        "startX" in element && typeof element.startX === "number"
+          ? element.startX
+          : fallbackX;
+      const startY =
+        "startY" in element && typeof element.startY === "number"
+          ? element.startY
+          : fallbackY;
+      const endX =
+        "endX" in element && typeof element.endX === "number"
+          ? element.endX
+          : fallbackX + fallbackWidth;
+      const endY =
+        "endY" in element && typeof element.endY === "number"
+          ? element.endY
+          : fallbackY + fallbackHeight;
+
+      return {
+        ...element,
+        startX,
+        startY,
+        endX,
+        endY,
+        x: startX,
+        y: startY,
+        width: endX - startX,
+        height: endY - startY,
+      };
+    }),
+  };
+};
+
+const serializeDiagram = (document: DiagramDocument) => {
+  return {
+    ...document,
+    elements: document.elements.map((element) => {
+      if (element.type !== "arrow" && element.type !== "line") {
+        return element;
+      }
+
+      const { x, y, width, height, ...rest } = element;
+      return rest;
+    }),
+  };
 };
 
 export const loadDiagram = (id: string): DiagramDocument | null => {
@@ -64,7 +123,7 @@ export const loadDiagram = (id: string): DiagramDocument | null => {
     if (!isDiagramDocument(parsed)) {
       return null;
     }
-    return parsed;
+    return normalizeDiagramDocument(parsed);
   } catch (error) {
     console.error("Failed to parse diagram", error);
     return null;
@@ -80,7 +139,7 @@ export const deleteDiagram = (id: string) => {
 };
 
 export const exportDiagramJson = (document: DiagramDocument) =>
-  JSON.stringify(document, null, 2);
+  JSON.stringify(serializeDiagram(document), null, 2);
 
 export const importDiagramJson = (value: string): DiagramDocument | null => {
   try {
@@ -88,7 +147,7 @@ export const importDiagramJson = (value: string): DiagramDocument | null => {
     if (!isDiagramDocument(parsed)) {
       return null;
     }
-    return parsed;
+    return normalizeDiagramDocument(parsed);
   } catch (error) {
     console.error("Failed to import diagram JSON", error);
     return null;
