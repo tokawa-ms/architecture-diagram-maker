@@ -18,6 +18,9 @@ A lightweight editor for quickly drafting architecture diagrams and saving them 
 ## Docs
 
 - [docs/architecture-en.md](docs/architecture-en.md): Architecture overview
+- [docs/architecture-diagram-en.md](docs/architecture-diagram-en.md): Architecture diagram
+- [docs/technology-en.md](docs/technology-en.md): Technology stack overview
+- [docs/features-en.md](docs/features-en.md): Implemented features
 - [docs/operations-en.md](docs/operations-en.md): Operations guide (detailed)
 
 ## Local Development
