@@ -15,6 +15,11 @@
 - ローカルストレージへの JSON 保存・読み込み
 - PNG / JSON 形式でエクスポート
 
+## ドキュメント
+
+- [docs/architecture.md](docs/architecture.md): アーキテクチャ概要
+- [docs/operations.md](docs/operations.md): 運用ガイド (詳細)
+
 ## ローカル実行
 
 1. 環境変数ファイルを作成します。
@@ -60,19 +65,25 @@ docker run --rm -p 3000:3000 -e PORT=3000 architecture-diagram-maker
 2. コンテナイメージをビルドして Azure Container Registry に push します。
 3. Container Apps を作成し、`PORT` 環境変数を設定します。
 
+最小構成では以下を想定します。
+
+- `NODE_ENV=production`
+- ヘルスチェックは `/api/health`
+- Cosmos DB を使う場合はマネージド ID を有効化
+
 ## Azure サービスとの連携について
 
 `/api/diagrams` で Azure Cosmos DB への保存・復元に対応しています。環境変数を設定しない場合はローカルストレージにフォールバックします。
 
 ### Cosmos DB 設定
 
-以下を設定すると、DefaultAzureCredential を利用して Cosmos DB に接続します。
+以下を設定すると、DefaultAzureCredential を利用して Cosmos DB に接続します。事前にデータベースとコンテナを作成しておく必要があります。
 
 - `COSMOS_ENDPOINT`
 - `COSMOS_DATABASE`
 - `COSMOS_CONTAINER`
 
-> コンテナのパーティションキーは `/id` を前提としています。
+> コンテナのパーティションキーは `/id` を前提としています。AAD 認証の場合は RBAC で `Cosmos DB Built-in Data Contributor` を付与してください。
 
 ローカル開発では `az login` 済みの Azure CLI 資格情報を利用します。本番は Azure Container Apps のマネージド ID で実行する想定です。
 
