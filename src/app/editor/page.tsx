@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import DiagramCanvas from "@/components/DiagramCanvas";
@@ -19,6 +19,10 @@ import type {
   DiagramDocument,
 } from "@/lib/types";
 import { exportDiagramJson, saveDiagram } from "@/lib/storage";
+import {
+  getHistoryLimit,
+  HISTORY_LIMIT_STORAGE_KEY,
+} from "@/lib/settings";
 
 const createEmptyDocument = (name: string): DiagramDocument => {
   const now = new Date().toISOString();
@@ -135,11 +139,26 @@ export default function EditorPage() {
   );
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [storageModalOpen, setStorageModalOpen] = useState(false);
+  const [historyLimit, setHistoryLimit] = useState(() => getHistoryLimit());
+  const [historyPast, setHistoryPast] = useState<
+    Array<{ diagram: DiagramDocument; selectedIds: string[] }>
+  >([]);
+  const [historyFuture, setHistoryFuture] = useState<
+    Array<{ diagram: DiagramDocument; selectedIds: string[] }>
+  >([]);
+  const historyPastRef = useRef(historyPast);
+  const historyFutureRef = useRef(historyFuture);
   const [contextMenu, setContextMenu] = useState<{
     elementIds: string[];
     left: number;
     top: number;
   } | null>(null);
+  const diagramRef = useRef(diagram);
+  const selectedIdsRef = useRef(selectedIds);
+  const historyLimitRef = useRef(historyLimit);
+  const isRestoringRef = useRef(false);
+  const interactionActiveRef = useRef(false);
+  const interactionRecordedRef = useRef(false);
   const navItems = [
     { href: "/", label: messages.navHome },
     { href: "/editor", label: messages.navEditor },
@@ -205,6 +224,161 @@ export default function EditorPage() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [storageModalOpen]);
 
+  useEffect(() => {
+    diagramRef.current = diagram;
+  }, [diagram]);
+
+  useEffect(() => {
+    selectedIdsRef.current = selectedIds;
+  }, [selectedIds]);
+
+  useEffect(() => {
+    historyPastRef.current = historyPast;
+  }, [historyPast]);
+
+  useEffect(() => {
+    historyFutureRef.current = historyFuture;
+  }, [historyFuture]);
+
+  useEffect(() => {
+    historyLimitRef.current = historyLimit;
+    if (historyPastRef.current.length > historyLimit) {
+      historyPastRef.current = historyPastRef.current.slice(
+        historyPastRef.current.length - historyLimit,
+      );
+    }
+    if (historyFutureRef.current.length > historyLimit) {
+      historyFutureRef.current = historyFutureRef.current.slice(0, historyLimit);
+    }
+    setHistoryPast([...historyPastRef.current]);
+    setHistoryFuture([...historyFutureRef.current]);
+  }, [historyLimit]);
+
+  useEffect(() => {
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === HISTORY_LIMIT_STORAGE_KEY) {
+        setHistoryLimit(getHistoryLimit());
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
+  const createSnapshot = useCallback(() => {
+    return {
+      diagram: diagramRef.current,
+      selectedIds: selectedIdsRef.current,
+    };
+  }, []);
+
+  const runWithoutHistory = (action: () => void) => {
+    isRestoringRef.current = true;
+    action();
+    queueMicrotask(() => {
+      isRestoringRef.current = false;
+    });
+  };
+
+  const commitHistoryState = () => {
+    setHistoryPast([...historyPastRef.current]);
+    setHistoryFuture([...historyFutureRef.current]);
+  };
+
+  const recordHistory = useCallback(() => {
+    if (isRestoringRef.current) return;
+    const snapshot = createSnapshot();
+    const limit = historyLimitRef.current;
+    const nextPast = [...historyPastRef.current, snapshot];
+    historyPastRef.current =
+      nextPast.length > limit ? nextPast.slice(nextPast.length - limit) : nextPast;
+    historyFutureRef.current = [];
+    commitHistoryState();
+  }, [createSnapshot]);
+
+  const recordHistoryIfNeeded = useCallback(() => {
+    if (isRestoringRef.current) return;
+    if (interactionActiveRef.current) return;
+    recordHistory();
+  }, [recordHistory]);
+
+  const startInteraction = () => {
+    if (interactionActiveRef.current) return;
+    interactionActiveRef.current = true;
+    interactionRecordedRef.current = true;
+    recordHistory();
+  };
+
+  const endInteraction = () => {
+    interactionActiveRef.current = false;
+    interactionRecordedRef.current = false;
+  };
+
+  const isEditableTarget = (target: EventTarget | null) => {
+    if (!(target instanceof HTMLElement)) return false;
+    const tag = target.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA") return true;
+    return target.isContentEditable;
+  };
+
+  const handleUndo = useCallback(() => {
+    const prev = historyPastRef.current;
+    if (prev.length === 0) return;
+    const snapshot = prev[prev.length - 1];
+    historyPastRef.current = prev.slice(0, -1);
+    const nextFuture = [createSnapshot(), ...historyFutureRef.current];
+    const limit = historyLimitRef.current;
+    historyFutureRef.current =
+      nextFuture.length > limit ? nextFuture.slice(0, limit) : nextFuture;
+    commitHistoryState();
+    runWithoutHistory(() => {
+      setDiagram(snapshot.diagram);
+      setSelectedIds(snapshot.selectedIds);
+    });
+  }, [createSnapshot]);
+
+  const handleRedo = useCallback(() => {
+    const prev = historyFutureRef.current;
+    if (prev.length === 0) return;
+    const snapshot = prev[0];
+    historyFutureRef.current = prev.slice(1);
+    const nextPast = [...historyPastRef.current, createSnapshot()];
+    const limit = historyLimitRef.current;
+    historyPastRef.current =
+      nextPast.length > limit ? nextPast.slice(nextPast.length - limit) : nextPast;
+    commitHistoryState();
+    runWithoutHistory(() => {
+      setDiagram(snapshot.diagram);
+      setSelectedIds(snapshot.selectedIds);
+    });
+  }, [createSnapshot]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (isEditableTarget(event.target)) return;
+      const isModifier = event.ctrlKey || event.metaKey;
+      if (!isModifier) return;
+      const key = event.key.toLowerCase();
+      if (key === "z") {
+        event.preventDefault();
+        if (event.repeat) return;
+        if (event.shiftKey) {
+          handleRedo();
+        } else {
+          handleUndo();
+        }
+      } else if (key === "y") {
+        event.preventDefault();
+        if (event.repeat) return;
+        handleRedo();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [handleRedo, handleUndo]);
+
 
   const updateDocument = (updates: Partial<DiagramDocument>) => {
     setDiagram((prev) => ({
@@ -258,9 +432,15 @@ export default function EditorPage() {
   };
 
   useEffect(() => {
-    setSelectedIds((prev) =>
-      prev.filter((id) => diagram.elements.some((element) => element.id === id)),
-    );
+    setSelectedIds((prev) => {
+      const next = prev.filter((id) =>
+        diagram.elements.some((element) => element.id === id),
+      );
+      if (next.length === prev.length && next.every((id, idx) => id === prev[idx])) {
+        return prev;
+      }
+      return next;
+    });
   }, [diagram.elements]);
 
   const handleAddElement = (
@@ -269,6 +449,7 @@ export default function EditorPage() {
     ends?: ArrowEnds,
   ) => {
     console.log("Adding element", type);
+    recordHistory();
     const element = createElement(type, defaultLabels, style, ends);
     updateElements((elements) => [...elements, element]);
     applySelection([element.id]);
@@ -280,6 +461,7 @@ export default function EditorPage() {
     src: string;
   }) => {
     console.log("Adding icon from palette", item.id);
+    recordHistory();
     const element = createElement("icon", defaultLabels);
     if (element.type !== "icon") return;
     const elementWithIcon: DiagramElement = {
@@ -293,6 +475,7 @@ export default function EditorPage() {
   };
 
   const handleUpdateElement = (id: string, updates: Partial<DiagramElement>) => {
+    recordHistoryIfNeeded();
     updateElements((elements) =>
       elements.map((element) => {
         if (element.id !== id) {
@@ -352,6 +535,7 @@ export default function EditorPage() {
 
   const handleClear = () => {
     console.log("Clearing canvas");
+    recordHistory();
     updateDocument({ elements: [] });
     setSelectedIds([]);
   };
@@ -390,6 +574,7 @@ export default function EditorPage() {
 
   const handleBringFront = () => {
     if (!selectedElement) return;
+    recordHistory();
     updateElements((elements) =>
       reorderZIndex(elements, selectedElement.id, "front"),
     );
@@ -397,6 +582,7 @@ export default function EditorPage() {
 
   const handleSendBack = () => {
     if (!selectedElement) return;
+    recordHistory();
     updateElements((elements) =>
       reorderZIndex(elements, selectedElement.id, "back"),
     );
@@ -404,6 +590,7 @@ export default function EditorPage() {
 
   const handleDuplicate = () => {
     if (selectedElements.length === 0) return;
+    recordHistory();
     const timestamp = Date.now();
     const duplicates = selectedElements.map((element, index) => ({
       ...element,
@@ -419,6 +606,7 @@ export default function EditorPage() {
 
   const handleDelete = () => {
     if (selectedIds.length === 0) return;
+    recordHistory();
     updateElements((elements) =>
       elements.filter((element) => !selectedIds.includes(element.id)),
     );
@@ -432,6 +620,7 @@ export default function EditorPage() {
   }) => {
     const { ids, deltaX, deltaY } = args;
     if (ids.length === 0) return;
+    recordHistoryIfNeeded();
     updateElements((elements) =>
       elements.map((element) => {
         if (!ids.includes(element.id)) return element;
@@ -453,6 +642,7 @@ export default function EditorPage() {
 
   const handleGroup = () => {
     if (selectedElements.length < 2) return;
+    recordHistory();
     const existingGroupIds = selectedElements
       .map((element) => element.groupId)
       .filter((groupId): groupId is string => Boolean(groupId));
@@ -476,6 +666,7 @@ export default function EditorPage() {
         .filter((groupId): groupId is string => Boolean(groupId)),
     );
     if (groupIds.size === 0) return;
+    recordHistory();
     updateElements((elements) =>
       elements.map((element) =>
         element.groupId && groupIds.has(element.groupId)
@@ -487,6 +678,7 @@ export default function EditorPage() {
 
   const handleLoadSample = () => {
     console.log("Loading sample diagram");
+    recordHistory();
     const sample = createSampleDiagram({
       name: messages.sampleName,
       apiGateway: messages.sampleApiGateway,
@@ -873,6 +1065,8 @@ export default function EditorPage() {
                   }}
                   onUpdate={handleUpdateElement}
                   onMoveSelection={handleMoveSelection}
+                  onInteractionStart={startInteraction}
+                  onInteractionEnd={endInteraction}
                   onOpenContextMenu={(args) => {
                     const position = clampContextMenuPosition(args);
                     const nextSelection = resolveSelection([args.elementId]);
@@ -932,7 +1126,10 @@ export default function EditorPage() {
                     empty: messages.storageEmpty,
                   }}
                   current={diagram}
-                  onLoad={(doc) => setDiagram(doc)}
+                  onLoad={(doc) => {
+                    recordHistory();
+                    setDiagram(doc);
+                  }}
                 />
                 <button
                   type="button"
