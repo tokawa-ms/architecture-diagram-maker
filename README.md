@@ -18,6 +18,9 @@
 ## ドキュメント
 
 - [docs/architecture.md](docs/architecture.md): アーキテクチャ概要
+- [docs/architecture-diagram.md](docs/architecture-diagram.md): アーキテクチャダイアグラム
+- [docs/technology.md](docs/technology.md): 利用技術の解説
+- [docs/features.md](docs/features.md): 実装済み機能一覧
 - [docs/operations.md](docs/operations.md): 運用ガイド (詳細)
 
 ## ローカル実行
