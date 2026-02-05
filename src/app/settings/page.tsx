@@ -5,12 +5,18 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { useLanguage } from "@/components/useLanguage";
 import { getMessages } from "@/lib/i18n";
-import { getHistoryLimit, setHistoryLimit } from "@/lib/settings";
+import {
+  getExportScale,
+  getHistoryLimit,
+  setExportScale,
+  setHistoryLimit,
+} from "@/lib/settings";
 
 export default function SettingsPage() {
   const language = useLanguage();
   const messages = getMessages(language);
   const [historyLimit, setHistoryLimitState] = useState(() => getHistoryLimit());
+  const [exportScale, setExportScaleState] = useState(() => getExportScale());
   const navItems = [
     { href: "/", label: messages.navHome },
     { href: "/editor", label: messages.navEditor },
@@ -21,11 +27,17 @@ export default function SettingsPage() {
 
   useEffect(() => {
     setHistoryLimitState(getHistoryLimit());
+    setExportScaleState(getExportScale());
   }, []);
 
   const handleHistoryLimitChange = (value: number) => {
     setHistoryLimit(value);
     setHistoryLimitState(getHistoryLimit());
+  };
+
+  const handleExportScaleChange = (value: number) => {
+    setExportScale(value);
+    setExportScaleState(getExportScale());
   };
 
   return (
@@ -69,6 +81,33 @@ export default function SettingsPage() {
               />
               <span className="text-xs text-slate-400">
                 {messages.historyLimitHint}
+              </span>
+            </label>
+          </div>
+          <div className="rounded-3xl bg-white p-8 shadow-sm">
+            <h2 className="text-lg font-semibold text-slate-900">
+              {messages.exportScaleTitle}
+            </h2>
+            <p className="mt-2 text-sm text-slate-500">
+              {messages.exportScaleBody}
+            </p>
+            <label className="mt-4 flex flex-col gap-2 text-sm text-slate-600">
+              <span className="font-medium text-slate-700">
+                {messages.exportScaleLabel}
+              </span>
+              <input
+                type="number"
+                min={1}
+                max={8}
+                step={1}
+                className="w-40 rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-700"
+                value={exportScale}
+                onChange={(event) =>
+                  handleExportScaleChange(Number(event.target.value))
+                }
+              />
+              <span className="text-xs text-slate-400">
+                {messages.exportScaleHint}
               </span>
             </label>
           </div>

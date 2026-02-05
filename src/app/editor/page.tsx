@@ -20,6 +20,7 @@ import type {
 } from "@/lib/types";
 import { exportDiagramJson, saveDiagram } from "@/lib/storage";
 import {
+  getExportScale,
   getHistoryLimit,
   HISTORY_LIMIT_STORAGE_KEY,
 } from "@/lib/settings";
@@ -744,7 +745,8 @@ export default function EditorPage() {
       });
     }) as typeof window.getComputedStyle;
 
-    const exportScale = window.devicePixelRatio || 1;
+    const exportScaleMultiplier = getExportScale();
+    const exportScale = (window.devicePixelRatio || 1) * exportScaleMultiplier;
 
     const drawArrowhead = (args: {
       ctx: CanvasRenderingContext2D;
@@ -799,7 +801,7 @@ export default function EditorPage() {
 
       const cssWidth = rootEl.clientWidth;
       const cssHeight = rootEl.clientHeight;
-      const dpr = window.devicePixelRatio || 1;
+      const dpr = exportScale;
       overlay.width = Math.max(1, Math.round(cssWidth * dpr));
       overlay.height = Math.max(1, Math.round(cssHeight * dpr));
       overlay.style.width = `${cssWidth}px`;
