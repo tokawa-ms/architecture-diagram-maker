@@ -9,12 +9,12 @@ Architecture Diagram Maker は、アーキテクチャ図を素早く作成し�
 ## 主要コンポーネント
 
 - Next.js (App Router, TypeScript)
-  - 画面: `/`, `/editor`, `/items`, `/settings`, `/about`
+  - 画面: `/`, `/editor`, `/items`, `/history`, `/settings`, `/about`
   - API: `/api/health`, `/api/icons`, `/api/diagrams`
 - UI コンポーネント
   - ヘッダー/フッター、ツールパネル、パレット、インスペクターなど
 - データ層
-  - 既定はブラウザのローカルストレージ
+  - 既定はブラウザのローカルストレージ (保存・履歴・ドラフト)
   - Cosmos DB が有効な場合は API 経由でクラウド保存
 
 ## データフロー
@@ -45,6 +45,8 @@ Architecture Diagram Maker は、アーキテクチャ図を素早く作成し�
 - `PORT`: ACA でのリッスンポート (既定 3000)
 - `NODE_ENV`: development / production
 - `ICONS_SAMPLE_ENABLED`: `public/icons-sample` をパレットに表示するか
+- `NEXT_PUBLIC_HISTORY_LIMIT`: 履歴保持件数の初期値
+- `NEXT_PUBLIC_EXPORT_SCALE`: PNG エクスポート倍率の初期値
 - Cosmos DB 用の 3 変数は設定時のみ有効
 
 ## セキュリティと認証

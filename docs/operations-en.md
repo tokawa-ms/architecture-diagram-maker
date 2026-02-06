@@ -20,6 +20,15 @@
 - Default storage is browser local storage
 - When Cosmos DB is configured, the app uses `/api/diagrams` for cloud persistence
 - JSON export/import provides lightweight backups
+- History snapshots are stored locally and can be restored from `/history`
+
+## Settings
+
+- Use `/settings` to adjust history retention and PNG export scale
+- Defaults can be overridden via environment variables
+  - `NEXT_PUBLIC_HISTORY_LIMIT` (10-1000)
+  - `NEXT_PUBLIC_EXPORT_SCALE` (1-8)
+- Updated values are saved to local storage
 
 ## Hosting on Azure Container Apps (detailed)
 

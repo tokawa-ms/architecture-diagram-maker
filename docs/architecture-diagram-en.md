@@ -30,3 +30,4 @@ flowchart LR
 
 - The API uses cloud persistence when Cosmos DB environment variables are configured.
 - Otherwise, the client falls back to browser local storage.
+- History snapshots and drafts are stored in local storage.

@@ -9,12 +9,12 @@ Architecture Diagram Maker is a lightweight editor for drafting architecture dia
 ## Core Components
 
 - Next.js (App Router, TypeScript)
-  - Pages: `/`, `/editor`, `/items`, `/settings`, `/about`
+  - Pages: `/`, `/editor`, `/items`, `/history`, `/settings`, `/about`
   - API: `/api/health`, `/api/icons`, `/api/diagrams`
 - UI Components
   - Header/footer, tool panels, palette, inspector, and more
 - Data Layer
-  - Local storage by default
+  - Local storage by default (saved diagrams, history, drafts)
   - Cosmos DB via API when configured
 
 ## Data Flow
@@ -45,6 +45,8 @@ Architecture Diagram Maker is a lightweight editor for drafting architecture dia
 - `PORT`: listening port on ACA (default 3000)
 - `NODE_ENV`: development / production
 - `ICONS_SAMPLE_ENABLED`: show `public/icons-sample` in the palette
+- `NEXT_PUBLIC_HISTORY_LIMIT`: default history retention
+- `NEXT_PUBLIC_EXPORT_SCALE`: default PNG export scale
 - Cosmos DB env vars are optional and only needed for cloud persistence
 
 ## Security and Auth
