@@ -14,9 +14,11 @@ import { getMessages } from "@/lib/i18n";
 import type {
   ArrowEnds,
   ArrowStyle,
+  DiagramArrowElement,
   DiagramElement,
   DiagramElementType,
   DiagramDocument,
+  DiagramLineElement,
   DiagramLinePoint,
 } from "@/lib/types";
 import { exportDiagramJson, saveDiagram } from "@/lib/storage";
@@ -824,7 +826,7 @@ export default function EditorPage() {
 
   const applyLineUpdates = (
     element: Extract<DiagramElement, { type: "arrow" | "line" }>,
-    updates: Partial<DiagramElement>,
+    updates: Partial<DiagramArrowElement | DiagramLineElement>,
   ) => {
     const existingPoints = Array.isArray(element.points) ? element.points : null;
     const incomingPoints =
@@ -956,7 +958,10 @@ export default function EditorPage() {
           return element;
         }
         if (element.type === "arrow" || element.type === "line") {
-          return applyLineUpdates(element, updates);
+          return applyLineUpdates(
+            element,
+            updates as Partial<DiagramArrowElement | DiagramLineElement>,
+          );
         }
 
         const nextX =
