@@ -278,6 +278,10 @@ export default function EditorPage() {
       propertyFontSize: messages.propertyFontSize,
       propertyRadius: messages.propertyRadius,
       propertyArrowStyle: messages.propertyArrowStyle,
+      propertyStartX: messages.propertyStartX,
+      propertyStartY: messages.propertyStartY,
+      propertyEndX: messages.propertyEndX,
+      propertyEndY: messages.propertyEndY,
     }),
     [messages],
   );
