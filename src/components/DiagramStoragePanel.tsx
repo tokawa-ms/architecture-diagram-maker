@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { DiagramDocument, StoredDiagramSummary } from "@/lib/types";
 import {
   deleteDiagram,
@@ -34,6 +34,71 @@ interface DiagramStoragePanelProps {
   onLoad: (document: DiagramDocument) => void;
 }
 
+type StoredDiagramsSnapshot = {
+  items: StoredDiagramSummary[];
+  loading: boolean;
+};
+
+const emptyStoredDiagramsSnapshot: StoredDiagramsSnapshot = {
+  items: [],
+  loading: true,
+};
+
+const storedDiagramsStore = (() => {
+  let snapshot = emptyStoredDiagramsSnapshot;
+  const listeners = new Set<() => void>();
+
+  const emit = () => {
+    listeners.forEach((listener) => listener());
+  };
+
+  const setSnapshot = (next: StoredDiagramsSnapshot) => {
+    snapshot = next;
+    emit();
+  };
+
+  const refresh = async () => {
+    if (typeof window === "undefined") {
+      setSnapshot({ items: [], loading: false });
+      return;
+    }
+    setSnapshot({ ...snapshot, loading: true });
+    const items = await listStoredDiagrams();
+    setSnapshot({ items, loading: false });
+  };
+
+  const subscribe = (listener: () => void) => {
+    listeners.add(listener);
+    return () => {
+      listeners.delete(listener);
+    };
+  };
+
+  return {
+    getSnapshot: () => snapshot,
+    getServerSnapshot: () => emptyStoredDiagramsSnapshot,
+    subscribe,
+    refresh,
+  };
+})();
+
+const useStoredDiagrams = () => {
+  const snapshot = useSyncExternalStore(
+    storedDiagramsStore.subscribe,
+    storedDiagramsStore.getSnapshot,
+    storedDiagramsStore.getServerSnapshot,
+  );
+
+  useEffect(() => {
+    void storedDiagramsStore.refresh();
+  }, []);
+
+  return {
+    ...snapshot,
+    refresh: storedDiagramsStore.refresh,
+  };
+};
+
 export default function DiagramStoragePanel({
   title,
   hint,
@@ -42,22 +107,14 @@ export default function DiagramStoragePanel({
   idPrefix,
   onLoad,
 }: DiagramStoragePanelProps) {
-  const [items, setItems] = useState<StoredDiagramSummary[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { items, loading, refresh } = useStoredDiagrams();
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [importFile, setImportFile] = useState<File | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const refreshItems = async () => {
-    setLoading(true);
-    const nextItems = await listStoredDiagrams();
-    setItems(nextItems);
-    setLoading(false);
+    await refresh();
   };
-
-  useEffect(() => {
-    void refreshItems();
-  }, []);
 
   const buildNewId = () => {
     const trimmed = idPrefix?.trim();
