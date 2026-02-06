@@ -20,6 +20,15 @@
 - 既定はブラウザのローカルストレージ
 - Cosmos DB が有効な場合は `/api/diagrams` 経由でクラウド保存
 - JSON のエクスポート/インポートで簡易バックアップが可能
+- 履歴スナップショットはローカル保存され `/history` で復元可能
+
+## 設定
+
+- `/settings` で履歴保持件数と PNG エクスポート倍率を調整
+- 既定値は環境変数で上書き可能
+  - `NEXT_PUBLIC_HISTORY_LIMIT` (10〜1000)
+  - `NEXT_PUBLIC_EXPORT_SCALE` (1〜8)
+- 変更した値はローカルストレージに保存
 
 ## Azure Container Apps でのホスト手順 (詳細)
 
