@@ -1,4 +1,8 @@
-import type { DiagramDocument, StoredDiagramSummary } from "./types";
+import type {
+  DiagramDocument,
+  DiagramHistoryEntrySummary,
+  StoredDiagramSummary,
+} from "./types";
 import {
   isDiagramDocument,
   normalizeDiagramDocument,
@@ -9,8 +13,11 @@ import {
 const STORAGE_INDEX_KEY = "architecture-diagram:index";
 const STORAGE_PREFIX = "architecture-diagram:doc:";
 const STORAGE_DRAFT_KEY = "architecture-diagram:draft";
+const HISTORY_INDEX_KEY = "architecture-diagram:history:index";
+const HISTORY_ENTRY_PREFIX = "architecture-diagram:history:entry:";
 
 export const toStorageKey = (id: string) => `${STORAGE_PREFIX}${id}`;
+const toHistoryEntryKey = (id: string) => `${HISTORY_ENTRY_PREFIX}${id}`;
 
 const readIndex = (): StoredDiagramSummary[] => {
   if (typeof window === "undefined") {
@@ -35,10 +42,100 @@ const writeIndex = (items: StoredDiagramSummary[]) => {
   window.localStorage.setItem(STORAGE_INDEX_KEY, JSON.stringify(items));
 };
 
+const readHistoryIndex = (): DiagramHistoryEntrySummary[] => {
+  if (typeof window === "undefined") {
+    return [];
+  }
+  const raw = window.localStorage.getItem(HISTORY_INDEX_KEY);
+  if (!raw) {
+    return [];
+  }
+  try {
+    return JSON.parse(raw) as DiagramHistoryEntrySummary[];
+  } catch (error) {
+    console.error("Failed to parse history index", error);
+    return [];
+  }
+};
+
+const writeHistoryIndex = (items: DiagramHistoryEntrySummary[]) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+  window.localStorage.setItem(HISTORY_INDEX_KEY, JSON.stringify(items));
+};
+
 const listStoredDiagramsLocal = (): StoredDiagramSummary[] => {
   return readIndex().sort((a, b) =>
     new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
   );
+};
+
+export const listHistoryEntries = (): DiagramHistoryEntrySummary[] => {
+  return readHistoryIndex().sort((a, b) =>
+    new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime(),
+  );
+};
+
+export const loadHistoryEntry = (id: string): DiagramDocument | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const raw = window.localStorage.getItem(toHistoryEntryKey(id));
+  if (!raw) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    if (!isDiagramDocument(parsed)) {
+      return null;
+    }
+    return normalizeDiagramDocument(parsed);
+  } catch (error) {
+    console.error("Failed to parse history entry", error);
+    return null;
+  }
+};
+
+export const appendHistoryEntry = (document: DiagramDocument, limit: number) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+  const index = readHistoryIndex();
+  const latest = index[0];
+  if (
+    latest &&
+    latest.diagramId === document.id &&
+    latest.savedAt === document.updatedAt
+  ) {
+    return;
+  }
+
+  const entryId = `history-${document.id}-${Date.now()}`;
+  const summary: DiagramHistoryEntrySummary = {
+    id: entryId,
+    diagramId: document.id,
+    name: document.name,
+    savedAt: document.updatedAt,
+    elementCount: document.elements.length,
+  };
+  try {
+    window.localStorage.setItem(
+      toHistoryEntryKey(entryId),
+      JSON.stringify(serializeDiagram(document)),
+    );
+  } catch (error) {
+    console.error("Failed to persist history entry", error);
+    return;
+  }
+
+  const nextIndex = [summary, ...index];
+  const trimmed = nextIndex.slice(0, Math.max(1, limit));
+  const removed = nextIndex.slice(trimmed.length);
+  writeHistoryIndex(trimmed);
+  for (const removedEntry of removed) {
+    window.localStorage.removeItem(toHistoryEntryKey(removedEntry.id));
+  }
 };
 
 const saveDiagramLocal = (document: DiagramDocument) => {

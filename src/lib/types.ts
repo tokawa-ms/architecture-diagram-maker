@@ -89,3 +89,11 @@ export interface StoredDiagramSummary {
   name: string;
   updatedAt: string;
 }
+
+export interface DiagramHistoryEntrySummary {
+  id: string;
+  diagramId: string;
+  name: string;
+  savedAt: string;
+  elementCount: number;
+}
