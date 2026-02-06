@@ -793,6 +793,10 @@ export default function EditorPage() {
   }) => {
     console.log("Adding element from drag", args.type);
     recordHistory();
+    const maxZIndex = Math.max(
+      0,
+      ...diagramRef.current.elements.map((element) => element.zIndex ?? 0),
+    );
     const element = createElementFromDrag({
       type: args.type,
       labels: defaultLabels,
@@ -805,8 +809,12 @@ export default function EditorPage() {
       endY: args.endY,
       points: args.points,
     });
-    updateElements((elements) => [...elements, element]);
-    applySelection([element.id]);
+    const nextElement: DiagramElement =
+      element.type === "arrow" || element.type === "line"
+        ? { ...element, zIndex: maxZIndex + 1 }
+        : element;
+    updateElements((elements) => [...elements, nextElement]);
+    applySelection([nextElement.id]);
   };
 
   const applyLineUpdates = (
@@ -1457,6 +1465,9 @@ export default function EditorPage() {
 
   const canGroup = selectedElements.length >= 2;
   const canUngroup = selectedElements.some((element) => element.groupId);
+  const isLineCreationMode =
+    Boolean(activeTool) &&
+    (activeTool?.type === "arrow" || activeTool?.type === "line");
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -1595,6 +1606,7 @@ export default function EditorPage() {
                   emptyMessage={messages.canvasEmpty}
                   showGrid={showGrid}
                   activeTool={activeTool}
+                  disableElementInteractions={isLineCreationMode}
                   previewLabels={{
                     box: defaultLabels.box,
                     text: defaultLabels.text,

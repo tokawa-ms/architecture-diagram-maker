@@ -8,6 +8,7 @@ interface DiagramCanvasProps {
   selectedIds: string[];
   emptyMessage: string;
   showGrid: boolean;
+  disableElementInteractions?: boolean;
   activeTool?: {
     type: DiagramElement["type"];
     style?: "solid" | "dashed";
@@ -88,6 +89,7 @@ const Arrow = ({
   selectionIdsForDrag,
   onInteractionStart,
   onInteractionEnd,
+  disableElementInteractions,
 }: {
   element: Extract<DiagramElement, { type: "arrow" | "line" }>;
   selected: boolean;
@@ -99,6 +101,7 @@ const Arrow = ({
   selectionIdsForDrag: string[];
   onInteractionStart?: () => void;
   onInteractionEnd?: () => void;
+  disableElementInteractions?: boolean;
 }) => {
   const getLinePoints = (target: typeof element): DiagramLinePoint[] => {
     if (Array.isArray(target.points) && target.points.length >= 2) {
@@ -345,6 +348,7 @@ const Arrow = ({
         pointerEvents="stroke"
         className="cursor-move"
         onPointerDown={(event) => {
+          if (disableElementInteractions) return;
           event.preventDefault();
           event.stopPropagation();
           onSelect();
@@ -414,7 +418,10 @@ const Arrow = ({
             stroke="#38BDF8"
             strokeWidth={2}
             pointerEvents="all"
-            onPointerDown={(event) => startDragEndpoint("start", event)}
+            onPointerDown={(event) => {
+              if (disableElementInteractions) return;
+              startDragEndpoint("start", event);
+            }}
           />
           <circle
             cx={relativePoints[relativePoints.length - 1].x}
@@ -424,7 +431,10 @@ const Arrow = ({
             stroke="#38BDF8"
             strokeWidth={2}
             pointerEvents="all"
-            onPointerDown={(event) => startDragEndpoint("end", event)}
+            onPointerDown={(event) => {
+              if (disableElementInteractions) return;
+              startDragEndpoint("end", event);
+            }}
           />
         </>
       )}
@@ -444,6 +454,7 @@ const Draggable = ({
   selectionIdsForDrag,
   onInteractionStart,
   onInteractionEnd,
+  disableElementInteractions,
 }: {
   element: DiagramElement;
   selected: boolean;
@@ -456,6 +467,7 @@ const Draggable = ({
   selectionIdsForDrag: string[];
   onInteractionStart?: () => void;
   onInteractionEnd?: () => void;
+  disableElementInteractions?: boolean;
 }) => {
   const [dragging, setDragging] = useState(false);
   const [origin, setOrigin] = useState({ x: 0, y: 0 });
@@ -476,6 +488,7 @@ const Draggable = ({
   const handlePointerDown = (
     event: React.PointerEvent<HTMLDivElement>,
   ) => {
+    if (disableElementInteractions) return;
     event.preventDefault();
     event.stopPropagation();
     onSelect();
@@ -600,7 +613,9 @@ const Draggable = ({
       className={`absolute cursor-move border-2 border-dashed ${
         selected ? "border-sky-400" : "border-transparent"
       }`}
-      style={getElementStyle(element)}
+      style={{
+        ...getElementStyle(element),
+      }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -665,6 +680,7 @@ export default function DiagramCanvas({
   onInteractionEnd,
   onMoveSelection,
   onOpenContextMenu,
+  disableElementInteractions,
 }: DiagramCanvasProps) {
   const gridSize = 10;
   const snapValue = (value: number) => Math.round(value / gridSize) * gridSize;
@@ -809,7 +825,8 @@ export default function DiagramCanvas({
       }}
       onPointerDown={(event) => {
         if (event.button !== 0) return;
-        if (event.target !== event.currentTarget) return;
+        const isCanvasTarget = event.target === event.currentTarget;
+        if (!isCanvasTarget && !activeTool) return;
         const rect = event.currentTarget.getBoundingClientRect();
         const startX = event.clientX - rect.left;
         const startY = event.clientY - rect.top;
@@ -1094,7 +1111,7 @@ export default function DiagramCanvas({
       {previewLine && (
         <svg
           className="pointer-events-none absolute left-0 top-0 overflow-visible"
-          style={{ left: 0, top: 0, width: "100%", height: "100%" }}
+          style={{ left: 0, top: 0, width: "100%", height: "100%", zIndex: 50 }}
         >
           {(activeTool?.type === "arrow") && (
             <defs>
@@ -1140,7 +1157,7 @@ export default function DiagramCanvas({
       {previewPolylinePoints && previewPolylinePoints.length >= 2 && (
         <svg
           className="pointer-events-none absolute left-0 top-0 overflow-visible"
-          style={{ left: 0, top: 0, width: "100%", height: "100%" }}
+          style={{ left: 0, top: 0, width: "100%", height: "100%", zIndex: 50 }}
         >
           {(activeTool?.type === "arrow") && (
             <defs>
@@ -1204,6 +1221,7 @@ export default function DiagramCanvas({
               selectionIdsForDrag={selectionIdsForDrag}
               onInteractionStart={onInteractionStart}
               onInteractionEnd={onInteractionEnd}
+              disableElementInteractions={disableElementInteractions}
             />
           );
         }
@@ -1223,6 +1241,7 @@ export default function DiagramCanvas({
             selectionIdsForDrag={selectionIdsForDrag}
             onInteractionStart={onInteractionStart}
             onInteractionEnd={onInteractionEnd}
+            disableElementInteractions={disableElementInteractions}
           >
             {element.type === "icon" && (
               <div className="flex h-full w-full flex-col items-center justify-center gap-2">
@@ -1232,6 +1251,8 @@ export default function DiagramCanvas({
                     src={element.src}
                     alt={element.label ?? "icon"}
                     className="h-10 w-10 object-contain"
+                    draggable={false}
+                    onDragStart={(event) => event.preventDefault()}
                   />
                 </div>
                 {element.label && (
