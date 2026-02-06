@@ -2,20 +2,41 @@
 
 [日本語](README.md) | English
 
-## Overview
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/Node.js-20%2B-339933.svg)](https://nodejs.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-App%20Router-black.svg)](https://nextjs.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-Enabled-38bdf8.svg)](https://tailwindcss.com/)
 
 A lightweight editor for quickly drafting architecture diagrams and saving them as JSON. In addition to local storage, you can enable Azure Cosmos DB for cloud storage.
 
+![Editor Screen](docs/img/UI-Image-EN.png)
+
+## Table of Contents
+
+- [Key Features](#key-features)
+- [Docs](#docs)
+- [Quick Start](#quick-start)
+- [Icons](#icons)
+- [Environment Variables](#environment-variables)
+- [Docker](#docker)
+- [Azure Container Apps Deployment Overview](#azure-container-apps-deployment-overview)
+- [Azure Cosmos DB Integration](#azure-cosmos-db-integration)
+- [UI Defaults](#ui-defaults)
+- [Localization](#localization)
+- [Contributing](#contributing)
+- [Code of Conduct](#code-of-conduct)
+- [License](#license)
+
 ## Key Features
 
-- Icon palette (auto-detect icons under `public/icons`)
-- Optional sample icons under `public/icons-sample` (controlled by env)
+- Icon palette (auto-detect icons in the icons folder)
+- Toggle sample icons via environment variable
 - Boxes, text, arrows, and lines
 - Z-order control plus duplicate/delete
 - Save/load JSON in local storage
 - Export to PNG / JSON
 - Browse and search icons on the catalog page
-- Auto-save history snapshots and restore via `/history`
+- Auto-save history snapshots and restore
 - Configure history retention and PNG export scale in settings
 
 ## Docs
@@ -26,7 +47,14 @@ A lightweight editor for quickly drafting architecture diagrams and saving them 
 - [docs/features-en.md](docs/features-en.md): Implemented features
 - [docs/operations-en.md](docs/operations-en.md): Operations guide (detailed)
 
-## Local Development
+## Quick Start
+
+### Prerequisites
+
+- Node.js 20+
+- npm
+
+### Steps
 
 1. Create the environment file.
 
@@ -48,59 +76,86 @@ npm run dev
 
 Visit `http://localhost:3000/editor` to open the editor.
 
-### Icons
+## Icons
 
-- Place production icons under `public/icons` (you can use nested folders).
-  - Contents under `public/icons` are ignored by Git via `.gitignore`.
+- Place production icons under public/icons (nested folders supported).
+  - Contents under public/icons are ignored by Git via .gitignore.
   - The folder structure is used as-is in the palette.
-  - For example, if you download the Azure service SVG icons from the [Azure Architecture Center](https://learn.microsoft.com/en-us/azure/architecture/icons/) and place the extracted folder directly under the icons directory, the application will be able to use them.
-- Sample icons live under `public/icons-sample`.
-  - Control whether they appear in the palette via `ICONS_SAMPLE_ENABLED`.
+  - Example: download Azure service SVG icons from the [Azure Architecture Center](https://learn.microsoft.com/en-us/azure/architecture/icons/) and place the extracted folder under icons to use them.
+- Sample icons live under public/icons-sample.
+  - Control whether they appear in the palette via ICONS_SAMPLE_ENABLED.
 
-## Docker Run
+## Environment Variables
+
+- PORT: default 3000
+- NODE_ENV: development / production
+- COSMOS_ENDPOINT: Cosmos DB endpoint
+- COSMOS_DATABASE: Cosmos DB database name
+- COSMOS_CONTAINER: Cosmos DB container name
+- NEXT_PUBLIC_HISTORY_LIMIT: history retention (10-1000)
+- NEXT_PUBLIC_EXPORT_SCALE: PNG export scale (1-8)
+- ICONS_SAMPLE_ENABLED: toggle sample icons
+
+## Docker
 
 ```
 docker build -t architecture-diagram-maker .
 docker run --rm -p 3000:3000 -e PORT=3000 architecture-diagram-maker
 ```
 
-Health checks use `/api/health`.
+Health checks use /api/health.
 
 ## Azure Container Apps Deployment Overview
 
 1. Prepare an Azure Container Apps environment and Log Analytics workspace.
 2. Build and push the container image to Azure Container Registry.
-3. Create the Container App and configure the `PORT` environment variable.
+3. Create the Container App and configure the PORT environment variable.
 
 Minimal expectations:
 
-- `NODE_ENV=production`
-- Health checks use `/api/health`
+- NODE_ENV=production
+- Health checks use /api/health
 - Enable managed identity when Cosmos DB is used
 
-## Azure Integration
+## Azure Cosmos DB Integration
 
-The `/api/diagrams` route supports Azure Cosmos DB persistence. If the environment variables are not set, it falls back to local storage.
+The /api/diagrams route supports Azure Cosmos DB persistence. If the environment variables are not set, it falls back to local storage.
 
 ### Cosmos DB setup
 
 Set the following to enable Cosmos DB via DefaultAzureCredential. Ensure the database and container are created in advance.
 
-- `COSMOS_ENDPOINT`
-- `COSMOS_DATABASE`
-- `COSMOS_CONTAINER`
+- COSMOS_ENDPOINT
+- COSMOS_DATABASE
+- COSMOS_CONTAINER
 
-> The container partition key is expected to be `/id`. With AAD auth, grant the `Cosmos DB Built-in Data Contributor` role.
+The container partition key is expected to be /id. With AAD auth, grant the Cosmos DB Built-in Data Contributor role.
 
-For local development, use Azure CLI credentials (`az login`). In production, run with a managed identity in Azure Container Apps.
+For local development, use Azure CLI credentials (az login). In production, run with a managed identity in Azure Container Apps.
 
 ## UI Defaults
 
-- `NEXT_PUBLIC_HISTORY_LIMIT`: default history retention (10-1000)
-- `NEXT_PUBLIC_EXPORT_SCALE`: default PNG export scale (1-8)
+- NEXT_PUBLIC_HISTORY_LIMIT: default history retention (10-1000)
+- NEXT_PUBLIC_EXPORT_SCALE: default PNG export scale (1-8)
 
 Values changed in settings are persisted to local storage.
 
 ## Localization
 
-Use the language dropdown in the header to toggle between Japanese and English. The selection is preserved with the `?lang=ja` / `?lang=en` query parameter.
+Use the language dropdown in the header to toggle between Japanese and English. The selection is preserved with the ?lang=ja / ?lang=en query parameter.
+
+## Contributing
+
+Issues and improvement ideas are welcome. If you plan to submit changes, this flow is recommended.
+
+- Open an issue to share context and intent
+- Keep pull requests small and focused
+- Add a clear description and screenshots when UI changes are involved
+
+## Code of Conduct
+
+Please treat all participants with respect. Harassment or discriminatory behavior is not tolerated. If you observe a violation, report it via an issue.
+
+## License
+
+MIT License. See [LICENSE](LICENSE) for details.
