@@ -21,6 +21,12 @@ interface DiagramToolsProps {
     toolArrowDashedSingle: string;
     toolArrowSolidDouble: string;
     toolArrowDashedDouble: string;
+    toolLineSolidElbow: string;
+    toolLineDashedElbow: string;
+    toolArrowSolidSingleElbow: string;
+    toolArrowDashedSingleElbow: string;
+    toolArrowSolidDoubleElbow: string;
+    toolArrowDashedDoubleElbow: string;
     toolClear: string;
     toolCanvasMenu: string;
     toolExportMenu: string;
@@ -39,12 +45,14 @@ interface DiagramToolsProps {
     type: DiagramElementType;
     style?: ArrowStyle;
     arrowEnds?: ArrowEnds;
+    lineMode?: "straight" | "polyline";
   } | null;
   selected: DiagramElement | null;
   onAddElement: (
     type: DiagramElementType,
     style?: ArrowStyle,
     arrowEnds?: ArrowEnds,
+    lineMode?: "straight" | "polyline",
   ) => void;
   onClear: () => void;
   onBringFront: () => void;
@@ -72,7 +80,7 @@ export default function DiagramTools({
   onLoadSample,
 }: DiagramToolsProps) {
   const baseButtonClass =
-    "rounded-md border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900";
+    "whitespace-nowrap rounded-md border border-slate-200 px-2 py-1.5 text-[11px] font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900";
   const activeButtonClass =
     "border-sky-400 bg-sky-50 text-sky-700";
   const menuItemClass =
@@ -92,11 +100,13 @@ export default function DiagramTools({
     type: DiagramElementType,
     style?: ArrowStyle,
     arrowEnds?: ArrowEnds,
+    lineMode?: "straight" | "polyline",
   ) =>
     !!activeTool &&
     activeTool.type === type &&
     activeTool.style === style &&
-    activeTool.arrowEnds === arrowEnds;
+    activeTool.arrowEnds === arrowEnds &&
+    (activeTool.lineMode ?? "straight") === (lineMode ?? "straight");
 
   // Note: bring-front / send-back are intentionally not exposed here;
   // they are available via the canvas context menu.
@@ -106,7 +116,7 @@ export default function DiagramTools({
   if (variant === "toolbar") {
     return (
       <div className="relative z-10 rounded-2xl border border-slate-200 bg-white px-3 py-2">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="grid auto-cols-max grid-flow-col grid-rows-2 gap-2 overflow-x-auto">
           <button
             type="button"
             className={`${baseButtonClass} ${
@@ -179,6 +189,80 @@ export default function DiagramTools({
             onClick={() => onAddElement("arrow", "dashed", "both")}
           >
             {labels.toolArrowDashedDouble}
+          </button>
+          <button
+            type="button"
+            className={`${baseButtonClass} ${
+              isActive("line", "solid", undefined, "polyline")
+                ? activeButtonClass
+                : ""
+            }`}
+            onClick={() => onAddElement("line", "solid", undefined, "polyline")}
+          >
+            {labels.toolLineSolidElbow}
+          </button>
+          <button
+            type="button"
+            className={`${baseButtonClass} ${
+              isActive("line", "dashed", undefined, "polyline")
+                ? activeButtonClass
+                : ""
+            }`}
+            onClick={() => onAddElement("line", "dashed", undefined, "polyline")}
+          >
+            {labels.toolLineDashedElbow}
+          </button>
+          <button
+            type="button"
+            className={`${baseButtonClass} ${
+              isActive("arrow", "solid", "end", "polyline")
+                ? activeButtonClass
+                : ""
+            }`}
+            onClick={() =>
+              onAddElement("arrow", "solid", "end", "polyline")
+            }
+          >
+            {labels.toolArrowSolidSingleElbow}
+          </button>
+          <button
+            type="button"
+            className={`${baseButtonClass} ${
+              isActive("arrow", "dashed", "end", "polyline")
+                ? activeButtonClass
+                : ""
+            }`}
+            onClick={() =>
+              onAddElement("arrow", "dashed", "end", "polyline")
+            }
+          >
+            {labels.toolArrowDashedSingleElbow}
+          </button>
+          <button
+            type="button"
+            className={`${baseButtonClass} ${
+              isActive("arrow", "solid", "both", "polyline")
+                ? activeButtonClass
+                : ""
+            }`}
+            onClick={() =>
+              onAddElement("arrow", "solid", "both", "polyline")
+            }
+          >
+            {labels.toolArrowSolidDoubleElbow}
+          </button>
+          <button
+            type="button"
+            className={`${baseButtonClass} ${
+              isActive("arrow", "dashed", "both", "polyline")
+                ? activeButtonClass
+                : ""
+            }`}
+            onClick={() =>
+              onAddElement("arrow", "dashed", "both", "polyline")
+            }
+          >
+            {labels.toolArrowDashedDoubleElbow}
           </button>
 
           <details ref={exportDetailsRef} className="relative">
@@ -342,6 +426,75 @@ export default function DiagramTools({
             onClick={() => onAddElement("arrow", "dashed", "both")}
           >
             {labels.toolArrowDashedDouble}
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            className={`${baseButtonClass} ${
+              isActive("line", "solid", undefined, "polyline")
+                ? activeButtonClass
+                : ""
+            }`}
+            onClick={() => onAddElement("line", "solid", undefined, "polyline")}
+          >
+            {labels.toolLineSolidElbow}
+          </button>
+          <button
+            type="button"
+            className={`${baseButtonClass} ${
+              isActive("line", "dashed", undefined, "polyline")
+                ? activeButtonClass
+                : ""
+            }`}
+            onClick={() => onAddElement("line", "dashed", undefined, "polyline")}
+          >
+            {labels.toolLineDashedElbow}
+          </button>
+          <button
+            type="button"
+            className={`${baseButtonClass} ${
+              isActive("arrow", "solid", "end", "polyline")
+                ? activeButtonClass
+                : ""
+            }`}
+            onClick={() => onAddElement("arrow", "solid", "end", "polyline")}
+          >
+            {labels.toolArrowSolidSingleElbow}
+          </button>
+          <button
+            type="button"
+            className={`${baseButtonClass} ${
+              isActive("arrow", "dashed", "end", "polyline")
+                ? activeButtonClass
+                : ""
+            }`}
+            onClick={() => onAddElement("arrow", "dashed", "end", "polyline")}
+          >
+            {labels.toolArrowDashedSingleElbow}
+          </button>
+          <button
+            type="button"
+            className={`${baseButtonClass} ${
+              isActive("arrow", "solid", "both", "polyline")
+                ? activeButtonClass
+                : ""
+            }`}
+            onClick={() => onAddElement("arrow", "solid", "both", "polyline")}
+          >
+            {labels.toolArrowSolidDoubleElbow}
+          </button>
+          <button
+            type="button"
+            className={`${baseButtonClass} ${
+              isActive("arrow", "dashed", "both", "polyline")
+                ? activeButtonClass
+                : ""
+            }`}
+            onClick={() => onAddElement("arrow", "dashed", "both", "polyline")}
+          >
+            {labels.toolArrowDashedDoubleElbow}
           </button>
         </div>
 

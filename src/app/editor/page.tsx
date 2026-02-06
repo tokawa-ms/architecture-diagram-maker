@@ -17,6 +17,7 @@ import type {
   DiagramElement,
   DiagramElementType,
   DiagramDocument,
+  DiagramLinePoint,
 } from "@/lib/types";
 import { exportDiagramJson, saveDiagram } from "@/lib/storage";
 import {
@@ -89,6 +90,34 @@ const snapLinePoints = (args: {
   };
 };
 
+const snapPoint = (point: DiagramLinePoint) => ({
+  x: snapValue(point.x),
+  y: snapValue(point.y),
+});
+
+const normalizePolyline = (points: DiagramLinePoint[]) => {
+  const snapped = points.map(snapPoint);
+  const xs = snapped.map((point) => point.x);
+  const ys = snapped.map((point) => point.y);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  const start = snapped[0];
+  const end = snapped[snapped.length - 1];
+  return {
+    points: snapped,
+    startX: start.x,
+    startY: start.y,
+    endX: end.x,
+    endY: end.y,
+    x: minX,
+    y: minY,
+    width: maxX - minX,
+    height: maxY - minY,
+  };
+};
+
 const enforceMinDistance = (start: number, end: number, min: number) => {
   if (Math.abs(end - start) >= min) return { start, end };
   return end >= start
@@ -124,6 +153,14 @@ const snapDragPoints = (args: {
 
 const snapElementToGrid = (element: DiagramElement): DiagramElement => {
   if (element.type === "arrow" || element.type === "line") {
+    if (Array.isArray(element.points) && element.points.length >= 2) {
+      const normalized = normalizePolyline(element.points);
+      return {
+        ...element,
+        ...normalized,
+        points: normalized.points,
+      } as DiagramElement;
+    }
     return {
       ...element,
       ...snapLinePoints({
@@ -155,6 +192,7 @@ const createElement = (
   },
   style?: ArrowStyle,
   arrowEnds?: ArrowEnds,
+  lineMode?: "straight" | "polyline",
 ): DiagramElement => {
   const base = {
     id: `${type}-${Date.now()}`,
@@ -187,6 +225,21 @@ const createElement = (
         color: "#0F172A",
       } as DiagramElement);
     case "arrow":
+      if (lineMode === "polyline") {
+        const start = { x: base.x, y: base.y };
+        const end = { x: base.x + 160, y: base.y };
+        const normalized = normalizePolyline([start, end]);
+        return {
+          ...base,
+          type: "arrow",
+          ...normalized,
+          points: normalized.points,
+          stroke: "#0F172A",
+          strokeWidth: 2,
+          style: style ?? "solid",
+          arrowEnds: arrowEnds ?? "end",
+        } as DiagramElement;
+      }
       return snapElementToGrid({
         ...base,
         type: "arrow",
@@ -202,6 +255,20 @@ const createElement = (
         arrowEnds: arrowEnds ?? "end",
       } as DiagramElement);
     case "line":
+      if (lineMode === "polyline") {
+        const start = { x: base.x, y: base.y };
+        const end = { x: base.x + 200, y: base.y };
+        const normalized = normalizePolyline([start, end]);
+        return {
+          ...base,
+          type: "line",
+          ...normalized,
+          points: normalized.points,
+          stroke: "#64748B",
+          strokeWidth: 2,
+          style: style ?? "dashed",
+        } as DiagramElement;
+      }
       return snapElementToGrid({
         ...base,
         type: "line",
@@ -236,10 +303,12 @@ const createElementFromDrag = (args: {
   };
   style?: ArrowStyle;
   arrowEnds?: ArrowEnds;
+  lineMode?: "straight" | "polyline";
   startX: number;
   startY: number;
   endX: number;
   endY: number;
+  points?: DiagramLinePoint[];
 }): DiagramElement => {
   const base = {
     id: `${args.type}-${Date.now()}`,
@@ -249,6 +318,30 @@ const createElementFromDrag = (args: {
   };
 
   if (args.type === "arrow" || args.type === "line") {
+    if (Array.isArray(args.points) && args.points.length >= 2) {
+      const normalized = normalizePolyline(args.points);
+      if (args.type === "arrow") {
+        return {
+          ...base,
+          type: "arrow",
+          ...normalized,
+          points: normalized.points,
+          stroke: "#0F172A",
+          strokeWidth: 2,
+          style: args.style ?? "solid",
+          arrowEnds: args.arrowEnds ?? "end",
+        } as DiagramElement;
+      }
+      return {
+        ...base,
+        type: "line",
+        ...normalized,
+        points: normalized.points,
+        stroke: "#64748B",
+        strokeWidth: 2,
+        style: args.style ?? "dashed",
+      } as DiagramElement;
+    }
     let snapped = snapLinePoints({
       startX: args.startX,
       startY: args.startY,
@@ -352,6 +445,7 @@ export default function EditorPage() {
     type: DiagramElementType;
     style?: ArrowStyle;
     arrowEnds?: ArrowEnds;
+    lineMode?: "straight" | "polyline";
   }>(null);
   const [storageModalOpen, setStorageModalOpen] = useState(false);
   const [historyLimit, setHistoryLimit] = useState(() => getHistoryLimit());
@@ -666,18 +760,23 @@ export default function EditorPage() {
     type: DiagramElementType,
     style?: ArrowStyle,
     ends?: ArrowEnds,
+    lineMode?: "straight" | "polyline",
   ) => {
-    const nextTool = { type, style, arrowEnds: ends };
+    const nextTool = { type, style, arrowEnds: ends, lineMode };
     setActiveTool((prev) => {
       if (
         prev &&
         prev.type === nextTool.type &&
         prev.style === nextTool.style &&
-        prev.arrowEnds === nextTool.arrowEnds
+        prev.arrowEnds === nextTool.arrowEnds &&
+        (prev.lineMode ?? "straight") === (nextTool.lineMode ?? "straight")
       ) {
         return null;
       }
-      return nextTool;
+      return {
+        ...nextTool,
+        lineMode: nextTool.lineMode ?? "straight",
+      };
     });
   };
 
@@ -689,6 +788,8 @@ export default function EditorPage() {
     startY: number;
     endX: number;
     endY: number;
+    points?: DiagramLinePoint[];
+    lineMode?: "straight" | "polyline";
   }) => {
     console.log("Adding element from drag", args.type);
     recordHistory();
@@ -697,13 +798,116 @@ export default function EditorPage() {
       labels: defaultLabels,
       style: args.style,
       arrowEnds: args.arrowEnds,
+      lineMode: args.lineMode,
       startX: args.startX,
       startY: args.startY,
       endX: args.endX,
       endY: args.endY,
+      points: args.points,
     });
     updateElements((elements) => [...elements, element]);
     applySelection([element.id]);
+  };
+
+  const applyLineUpdates = (
+    element: Extract<DiagramElement, { type: "arrow" | "line" }>,
+    updates: Partial<DiagramElement>,
+  ) => {
+    const existingPoints = Array.isArray(element.points) ? element.points : null;
+    const incomingPoints =
+      "points" in updates && Array.isArray(updates.points)
+        ? (updates.points as DiagramLinePoint[])
+        : null;
+    const shouldUsePoints =
+      (incomingPoints?.length ?? 0) >= 2 || (existingPoints?.length ?? 0) >= 2;
+
+    if (shouldUsePoints) {
+      let points = incomingPoints ?? existingPoints ?? [
+        { x: element.startX, y: element.startY },
+        { x: element.endX, y: element.endY },
+      ];
+
+      if (!incomingPoints) {
+        const nextPoints = [...points];
+        if (
+          typeof updates.startX === "number" || typeof updates.startY === "number"
+        ) {
+          nextPoints[0] = {
+            x:
+              typeof updates.startX === "number"
+                ? updates.startX
+                : nextPoints[0].x,
+            y:
+              typeof updates.startY === "number"
+                ? updates.startY
+                : nextPoints[0].y,
+          };
+        }
+        if (
+          typeof updates.endX === "number" || typeof updates.endY === "number"
+        ) {
+          const lastIndex = nextPoints.length - 1;
+          nextPoints[lastIndex] = {
+            x:
+              typeof updates.endX === "number"
+                ? updates.endX
+                : nextPoints[lastIndex].x,
+            y:
+              typeof updates.endY === "number"
+                ? updates.endY
+                : nextPoints[lastIndex].y,
+          };
+        }
+        points = nextPoints;
+      }
+
+      const normalized = normalizePolyline(points);
+      return {
+        ...element,
+        ...updates,
+        ...normalized,
+        points: normalized.points,
+      } as DiagramElement;
+    }
+
+    const nextStartX =
+      "startX" in updates && typeof updates.startX === "number"
+        ? updates.startX
+        : "x" in updates && typeof updates.x === "number"
+          ? updates.x
+          : element.startX;
+    const nextStartY =
+      "startY" in updates && typeof updates.startY === "number"
+        ? updates.startY
+        : "y" in updates && typeof updates.y === "number"
+          ? updates.y
+          : element.startY;
+    const nextEndX =
+      "endX" in updates && typeof updates.endX === "number"
+        ? updates.endX
+        : "width" in updates && typeof updates.width === "number"
+          ? nextStartX + updates.width
+          : element.endX;
+    const nextEndY =
+      "endY" in updates && typeof updates.endY === "number"
+        ? updates.endY
+        : "height" in updates && typeof updates.height === "number"
+          ? nextStartY + updates.height
+          : element.endY;
+
+    const snapped = snapLinePoints({
+      startX: nextStartX,
+      startY: nextStartY,
+      endX: nextEndX,
+      endY: nextEndY,
+    });
+
+    return {
+      ...(element as DiagramElement),
+      ...updates,
+      ...snapped,
+      points: undefined,
+    } as DiagramElement;
   };
 
   const handlePaletteSelect = (item: {
@@ -733,43 +937,7 @@ export default function EditorPage() {
           return element;
         }
         if (element.type === "arrow" || element.type === "line") {
-          const nextStartX =
-            "startX" in updates && typeof updates.startX === "number"
-              ? updates.startX
-              : "x" in updates && typeof updates.x === "number"
-                ? updates.x
-              : element.startX;
-          const nextStartY =
-            "startY" in updates && typeof updates.startY === "number"
-              ? updates.startY
-              : "y" in updates && typeof updates.y === "number"
-                ? updates.y
-              : element.startY;
-          const nextEndX =
-            "endX" in updates && typeof updates.endX === "number"
-              ? updates.endX
-              : "width" in updates && typeof updates.width === "number"
-                ? nextStartX + updates.width
-              : element.endX;
-          const nextEndY =
-            "endY" in updates && typeof updates.endY === "number"
-              ? updates.endY
-              : "height" in updates && typeof updates.height === "number"
-                ? nextStartY + updates.height
-              : element.endY;
-
-          const snapped = snapLinePoints({
-            startX: nextStartX,
-            startY: nextStartY,
-            endX: nextEndX,
-            endY: nextEndY,
-          });
-
-          return {
-            ...(element as DiagramElement),
-            ...updates,
-            ...snapped,
-          } as DiagramElement;
+          return applyLineUpdates(element, updates);
         }
 
         const nextX =
@@ -862,19 +1030,34 @@ export default function EditorPage() {
     const timestamp = Date.now();
     const duplicates = selectedElements.map((element, index) => {
       if (element.type === "arrow" || element.type === "line") {
-        const snapped = snapLinePoints({
-          startX: element.startX + 20,
-          startY: element.startY + 20,
-          endX: element.endX + 20,
-          endY: element.endY + 20,
-        });
-        return {
-          ...element,
-          ...snapped,
-          id: `${element.id}-copy-${timestamp}-${index}`,
-          zIndex: element.zIndex + 1,
-          groupId: undefined,
-        } as DiagramElement;
+          if (Array.isArray(element.points) && element.points.length >= 2) {
+            const nextPoints = element.points.map((point) => ({
+              x: point.x + 20,
+              y: point.y + 20,
+            }));
+            const normalized = normalizePolyline(nextPoints);
+            return {
+              ...element,
+              ...normalized,
+              points: normalized.points,
+              id: `${element.id}-copy-${timestamp}-${index}`,
+              zIndex: element.zIndex + 1,
+              groupId: undefined,
+            } as DiagramElement;
+          }
+          const snapped = snapLinePoints({
+            startX: element.startX + 20,
+            startY: element.startY + 20,
+            endX: element.endX + 20,
+            endY: element.endY + 20,
+          });
+          return {
+            ...element,
+            ...snapped,
+            id: `${element.id}-copy-${timestamp}-${index}`,
+            zIndex: element.zIndex + 1,
+            groupId: undefined,
+          } as DiagramElement;
       }
 
       const snapped = snapRectByCenter({
@@ -916,6 +1099,13 @@ export default function EditorPage() {
       elements.map((element) => {
         if (!ids.includes(element.id)) return element;
         if (element.type === "arrow" || element.type === "line") {
+          if (Array.isArray(element.points) && element.points.length >= 2) {
+            const nextPoints = element.points.map((point) => ({
+              x: point.x + deltaX,
+              y: point.y + deltaY,
+            }));
+            return applyLineUpdates(element, { points: nextPoints });
+          }
           const snapped = snapLinePoints({
             startX: element.startX + deltaX,
             startY: element.startY + deltaY,
@@ -1119,22 +1309,15 @@ export default function EditorPage() {
       for (const element of diagram.elements) {
         if (element.type !== "arrow" && element.type !== "line") continue;
 
-        const startX =
-          "startX" in element && typeof element.startX === "number"
-            ? element.startX
-            : element.x;
-        const startY =
-          "startY" in element && typeof element.startY === "number"
-            ? element.startY
-            : element.y;
-        const endX =
-          "endX" in element && typeof element.endX === "number"
-            ? element.endX
-            : element.x + element.width;
-        const endY =
-          "endY" in element && typeof element.endY === "number"
-            ? element.endY
-            : element.y + element.height;
+        const points =
+          Array.isArray(element.points) && element.points.length >= 2
+            ? element.points
+            : [
+                { x: element.startX, y: element.startY },
+                { x: element.endX, y: element.endY },
+              ];
+        const start = points[0];
+        const end = points[points.length - 1];
 
         const style = (element as unknown as { style?: string }).style ?? "solid";
         const strokeWidth = Math.max(1, element.strokeWidth);
@@ -1151,8 +1334,10 @@ export default function EditorPage() {
         else ctx.setLineDash([]);
 
         ctx.beginPath();
-        ctx.moveTo(startX, startY);
-        ctx.lineTo(endX, endY);
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i += 1) {
+          ctx.lineTo(points[i].x, points[i].y);
+        }
         ctx.stroke();
 
         if (element.type === "arrow") {
@@ -1161,20 +1346,20 @@ export default function EditorPage() {
           if (arrowEnds === "end" || arrowEnds === "both") {
             drawArrowhead({
               ctx,
-              fromX: startX,
-              fromY: startY,
-              toX: endX,
-              toY: endY,
+              fromX: start.x,
+              fromY: start.y,
+              toX: end.x,
+              toY: end.y,
               strokeWidth,
             });
           }
           if (arrowEnds === "both") {
             drawArrowhead({
               ctx,
-              fromX: endX,
-              fromY: endY,
-              toX: startX,
-              toY: startY,
+              fromX: end.x,
+              fromY: end.y,
+              toX: start.x,
+              toY: start.y,
               strokeWidth,
             });
           }
@@ -1345,6 +1530,12 @@ export default function EditorPage() {
                     toolArrowDashedSingle: messages.toolArrowDashedSingle,
                     toolArrowSolidDouble: messages.toolArrowSolidDouble,
                     toolArrowDashedDouble: messages.toolArrowDashedDouble,
+                    toolLineSolidElbow: messages.toolLineSolidElbow,
+                    toolLineDashedElbow: messages.toolLineDashedElbow,
+                    toolArrowSolidSingleElbow: messages.toolArrowSolidSingleElbow,
+                    toolArrowDashedSingleElbow: messages.toolArrowDashedSingleElbow,
+                    toolArrowSolidDoubleElbow: messages.toolArrowSolidDoubleElbow,
+                    toolArrowDashedDoubleElbow: messages.toolArrowDashedDoubleElbow,
                     toolClear: messages.toolClear,
                     toolCanvasMenu: messages.toolCanvasMenu,
                     toolExportMenu: messages.toolExportMenu,
