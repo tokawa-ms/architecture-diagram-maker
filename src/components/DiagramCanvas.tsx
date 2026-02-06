@@ -867,6 +867,10 @@ export default function DiagramCanvas({
     }
     return { x: anchor.x, y: next.y };
   };
+  const isPolylineMode =
+    activeTool &&
+    (activeTool.type === "arrow" || activeTool.type === "line") &&
+    activeTool.lineMode === "polyline";
   const finalizePolylineAt = (
     event: React.MouseEvent<HTMLDivElement>,
     draft: NonNullable<typeof polylineDraft>,
@@ -957,9 +961,11 @@ export default function DiagramCanvas({
     });
   };
 
+  const activePolylineDraft = isPolylineMode ? polylineDraft : null;
+
   useEffect(() => {
-    polylineDraftRef.current = polylineDraft;
-  }, [polylineDraft]);
+    polylineDraftRef.current = activePolylineDraft;
+  }, [activePolylineDraft]);
 
   const getElementBounds = (element: DiagramElement) => {
     const minX = Math.min(element.x, element.x + element.width);
@@ -998,26 +1004,15 @@ export default function DiagramCanvas({
         })
       : null;
 
-  const previewPolylinePoints = polylineDraft
+  const previewPolylinePoints = activePolylineDraft
     ? (() => {
-        const base = polylineDraft.points;
-        if (polylineDraft.pendingFinalize) {
+        const base = activePolylineDraft.points;
+        if (activePolylineDraft.pendingFinalize) {
           return base;
         }
-        return [...base, polylineDraft.current];
+        return [...base, activePolylineDraft.current];
       })()
     : null;
-
-  const isPolylineMode =
-    activeTool &&
-    (activeTool.type === "arrow" || activeTool.type === "line") &&
-    activeTool.lineMode === "polyline";
-
-  useEffect(() => {
-    if (!isPolylineMode) {
-      setPolylineDraft(null);
-    }
-  }, [isPolylineMode]);
 
   const getGroupSelectionIds = (element: DiagramElement) => {
     if (!element.groupId) return [element.id];
@@ -1389,7 +1384,13 @@ export default function DiagramCanvas({
         event.stopPropagation();
         finalizePolylineAt(event, activeDraft);
         try {
-          event.currentTarget.releasePointerCapture(event.pointerId);
+          const pointerId =
+            "pointerId" in event.nativeEvent
+              ? event.nativeEvent.pointerId
+              : null;
+          if (typeof pointerId === "number") {
+            event.currentTarget.releasePointerCapture(pointerId);
+          }
         } catch {
           // no-op
         }

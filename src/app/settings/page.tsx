@@ -1,22 +1,104 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { useLanguage } from "@/components/useLanguage";
 import { getMessages } from "@/lib/i18n";
 import {
+  EXPORT_SCALE_STORAGE_KEY,
+  getDefaultExportScale,
+  getDefaultHistoryLimit,
   getExportScale,
   getHistoryLimit,
+  HISTORY_LIMIT_STORAGE_KEY,
   setExportScale,
   setHistoryLimit,
 } from "@/lib/settings";
 
+type SettingsSnapshot = {
+  historyLimit: number;
+  exportScale: number;
+};
+
+const readSettingsSnapshot = (): SettingsSnapshot => ({
+  historyLimit: getHistoryLimit(),
+  exportScale: getExportScale(),
+});
+
+const serverSnapshot: SettingsSnapshot = {
+  historyLimit: getDefaultHistoryLimit(),
+  exportScale: getDefaultExportScale(),
+};
+
+const settingsStore = (() => {
+  let snapshot = readSettingsSnapshot();
+  const listeners = new Set<() => void>();
+
+  const emitIfChanged = (next: SettingsSnapshot) => {
+    if (
+      next.historyLimit === snapshot.historyLimit &&
+      next.exportScale === snapshot.exportScale
+    ) {
+      return;
+    }
+    snapshot = next;
+    listeners.forEach((listener) => listener());
+  };
+
+  const updateSnapshot = () => {
+    emitIfChanged(readSettingsSnapshot());
+  };
+
+  const subscribe = (listener: () => void) => {
+    listeners.add(listener);
+    if (typeof window === "undefined") {
+      return () => {
+        listeners.delete(listener);
+      };
+    }
+    const handleStorage = (event: StorageEvent) => {
+      if (
+        event.key === HISTORY_LIMIT_STORAGE_KEY ||
+        event.key === EXPORT_SCALE_STORAGE_KEY
+      ) {
+        updateSnapshot();
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      listeners.delete(listener);
+      window.removeEventListener("storage", handleStorage);
+    };
+  };
+
+  const setHistoryLimitValue = (value: number) => {
+    setHistoryLimit(value);
+    updateSnapshot();
+  };
+
+  const setExportScaleValue = (value: number) => {
+    setExportScale(value);
+    updateSnapshot();
+  };
+
+  return {
+    getSnapshot: () => snapshot,
+    getServerSnapshot: () => serverSnapshot,
+    subscribe,
+    setHistoryLimitValue,
+    setExportScaleValue,
+  };
+})();
+
 export default function SettingsPage() {
   const language = useLanguage();
   const messages = getMessages(language);
-  const [historyLimit, setHistoryLimitState] = useState(() => getHistoryLimit());
-  const [exportScale, setExportScaleState] = useState(() => getExportScale());
+  const { historyLimit, exportScale } = useSyncExternalStore(
+    settingsStore.subscribe,
+    settingsStore.getSnapshot,
+    settingsStore.getServerSnapshot,
+  );
   const navItems = [
     { href: "/", label: messages.navHome },
     { href: "/editor", label: messages.navEditor },
@@ -25,19 +107,12 @@ export default function SettingsPage() {
     { href: "/about", label: messages.navAbout },
   ];
 
-  useEffect(() => {
-    setHistoryLimitState(getHistoryLimit());
-    setExportScaleState(getExportScale());
-  }, []);
-
   const handleHistoryLimitChange = (value: number) => {
-    setHistoryLimit(value);
-    setHistoryLimitState(getHistoryLimit());
+    settingsStore.setHistoryLimitValue(value);
   };
 
   const handleExportScaleChange = (value: number) => {
-    setExportScale(value);
-    setExportScaleState(getExportScale());
+    settingsStore.setExportScaleValue(value);
   };
 
   return (
