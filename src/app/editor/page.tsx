@@ -814,10 +814,10 @@ export default function EditorPage() {
       endY: args.endY,
       points: args.points,
     });
-    const nextElement: DiagramElement =
-      element.type === "arrow" || element.type === "line"
-        ? { ...element, zIndex: maxZIndex + 1 }
-        : element;
+    const nextElement: DiagramElement = {
+      ...element,
+      zIndex: maxZIndex + 1,
+    };
     updateElements((elements) => [...elements, nextElement]);
     applySelection([nextElement.id]);
   };
@@ -1742,6 +1742,12 @@ export default function EditorPage() {
                   {messages.panelPropertiesTitle}
                 </span>
               </div>
+              {selectedElement && (
+                <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
+                  <span className="font-semibold text-slate-700">ID:</span>{" "}
+                  <span className="break-all">{selectedElement.id}</span>
+                </div>
+              )}
               <div className="mb-2 grid grid-cols-3 gap-2">
                 <button
                   type="button"
