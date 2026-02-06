@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import type { DiagramElement } from "@/lib/types";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { DiagramElement, DiagramLinePoint } from "@/lib/types";
 
 interface DiagramCanvasProps {
   elements: DiagramElement[];
@@ -12,6 +12,7 @@ interface DiagramCanvasProps {
     type: DiagramElement["type"];
     style?: "solid" | "dashed";
     arrowEnds?: "end" | "both";
+    lineMode?: "straight" | "polyline";
   } | null;
   previewLabels?: {
     box: string;
@@ -27,6 +28,8 @@ interface DiagramCanvasProps {
     startY: number;
     endX: number;
     endY: number;
+    points?: DiagramLinePoint[];
+    lineMode?: "straight" | "polyline";
   }) => void;
   onInteractionStart?: () => void;
   onInteractionEnd?: () => void;
@@ -97,7 +100,10 @@ const Arrow = ({
   onInteractionStart?: () => void;
   onInteractionEnd?: () => void;
 }) => {
-  const getLinePoints = (target: typeof element) => {
+  const getLinePoints = (target: typeof element): DiagramLinePoint[] => {
+    if (Array.isArray(target.points) && target.points.length >= 2) {
+      return target.points;
+    }
     const startX =
       "startX" in target && typeof target.startX === "number"
         ? target.startX
@@ -114,7 +120,10 @@ const Arrow = ({
       "endY" in target && typeof target.endY === "number"
         ? target.endY
         : target.y + target.height;
-    return { startX, startY, endX, endY };
+    return [
+      { x: startX, y: startY },
+      { x: endX, y: endY },
+    ];
   };
 
   const strokeDasharray = useMemo(() => {
@@ -142,6 +151,7 @@ const Arrow = ({
     fixedStartY: number;
     fixedEndX: number;
     fixedEndY: number;
+    points?: DiagramLinePoint[];
   }>(null);
 
   const [dragLine, setDragLine] = useState<null | {
@@ -151,6 +161,7 @@ const Arrow = ({
     startY: number;
     startEndX: number;
     startEndY: number;
+    points?: DiagramLinePoint[];
   }>(null);
 
   const [groupDrag, setGroupDrag] = useState<null | {
@@ -158,21 +169,21 @@ const Arrow = ({
     lastClientY: number;
   }>(null);
 
-  const points = getLinePoints(element);
-  const startXAbs = points.startX;
-  const startYAbs = points.startY;
-  const endXAbs = points.endX;
-  const endYAbs = points.endY;
-
-  const minXAbs = Math.min(startXAbs, endXAbs);
-  const minYAbs = Math.min(startYAbs, endYAbs);
-  const boxWidth = Math.max(Math.abs(endXAbs - startXAbs), 10);
-  const boxHeight = Math.max(Math.abs(endYAbs - startYAbs), 10);
-
-  const startX = startXAbs - minXAbs;
-  const startY = startYAbs - minYAbs;
-  const endX = endXAbs - minXAbs;
-  const endY = endYAbs - minYAbs;
+  const linePoints = getLinePoints(element);
+  const startPointAbs = linePoints[0];
+  const endPointAbs = linePoints[linePoints.length - 1];
+  const xs = linePoints.map((point) => point.x);
+  const ys = linePoints.map((point) => point.y);
+  const minXAbs = Math.min(...xs);
+  const maxXAbs = Math.max(...xs);
+  const minYAbs = Math.min(...ys);
+  const maxYAbs = Math.max(...ys);
+  const boxWidth = Math.max(maxXAbs - minXAbs, 10);
+  const boxHeight = Math.max(maxYAbs - minYAbs, 10);
+  const relativePoints = linePoints.map((point) => ({
+    x: point.x - minXAbs,
+    y: point.y - minYAbs,
+  }));
 
   useEffect(() => {
     if (!dragHandle) return;
@@ -180,6 +191,14 @@ const Arrow = ({
     const handlePointerMove = (event: PointerEvent) => {
       const nextXAbs = event.clientX - dragHandle.offsetX;
       const nextYAbs = event.clientY - dragHandle.offsetY;
+
+      if (dragHandle.points && dragHandle.points.length >= 2) {
+        const updated = [...dragHandle.points];
+        const index = dragHandle.which === "start" ? 0 : updated.length - 1;
+        updated[index] = { x: nextXAbs, y: nextYAbs };
+        onUpdate({ points: updated, startX: updated[0].x, startY: updated[0].y });
+        return;
+      }
 
       if (dragHandle.which === "start") {
         onUpdate({
@@ -218,6 +237,14 @@ const Arrow = ({
     const handlePointerMove = (event: PointerEvent) => {
       const dx = event.clientX - dragLine.startClientX;
       const dy = event.clientY - dragLine.startClientY;
+      if (dragLine.points && dragLine.points.length >= 2) {
+        const nextPoints = dragLine.points.map((point) => ({
+          x: point.x + dx,
+          y: point.y + dy,
+        }));
+        onUpdate({ points: nextPoints });
+        return;
+      }
       onUpdate({
         startX: dragLine.startX + dx,
         startY: dragLine.startY + dy,
@@ -272,17 +299,18 @@ const Arrow = ({
     onSelect();
     onInteractionStart?.();
 
-    const pointXAbs = which === "start" ? startXAbs : endXAbs;
-    const pointYAbs = which === "start" ? startYAbs : endYAbs;
+    const pointXAbs = which === "start" ? startPointAbs.x : endPointAbs.x;
+    const pointYAbs = which === "start" ? startPointAbs.y : endPointAbs.y;
 
     setDragHandle({
       which,
       offsetX: event.clientX - pointXAbs,
       offsetY: event.clientY - pointYAbs,
-      fixedStartX: startXAbs,
-      fixedStartY: startYAbs,
-      fixedEndX: endXAbs,
-      fixedEndY: endYAbs,
+      fixedStartX: startPointAbs.x,
+      fixedStartY: startPointAbs.y,
+      fixedEndX: endPointAbs.x,
+      fixedEndY: endPointAbs.y,
+      points: linePoints,
     });
   };
 
@@ -307,15 +335,13 @@ const Arrow = ({
         onOpenContextMenu?.({ clientX: event.clientX, clientY: event.clientY });
       }}
     >
-      <line
-        x1={startX}
-        y1={startY}
-        x2={endX}
-        y2={endY}
+      <polyline
+        points={relativePoints.map((point) => `${point.x},${point.y}`).join(" ")}
         stroke="transparent"
         strokeWidth={hitStrokeWidth}
         strokeLinecap="round"
         strokeDasharray={strokeDasharray}
+        fill="none"
         pointerEvents="stroke"
         className="cursor-move"
         onPointerDown={(event) => {
@@ -336,18 +362,16 @@ const Arrow = ({
           setDragLine({
             startClientX: event.clientX,
             startClientY: event.clientY,
-            startX: startXAbs,
-            startY: startYAbs,
-            startEndX: endXAbs,
-            startEndY: endYAbs,
+            startX: startPointAbs.x,
+            startY: startPointAbs.y,
+            startEndX: endPointAbs.x,
+            startEndY: endPointAbs.y,
+            points: linePoints,
           });
         }}
       />
-      <line
-        x1={startX}
-        y1={startY}
-        x2={endX}
-        y2={endY}
+      <polyline
+        points={relativePoints.map((point) => `${point.x},${point.y}`).join(" ")}
         stroke={element.stroke}
         strokeWidth={element.strokeWidth}
         strokeDasharray={strokeDasharray}
@@ -358,6 +382,7 @@ const Arrow = ({
         }
         markerStart={arrowHead && arrowEnds === "both" ? `url(#${markerId})` : undefined}
         strokeLinecap="round"
+        fill="none"
         pointerEvents="none"
       />
       {arrowHead && (
@@ -382,8 +407,8 @@ const Arrow = ({
       {selected && (
         <>
           <circle
-            cx={startX}
-            cy={startY}
+            cx={relativePoints[0].x}
+            cy={relativePoints[0].y}
             r={6}
             fill="white"
             stroke="#38BDF8"
@@ -392,8 +417,8 @@ const Arrow = ({
             onPointerDown={(event) => startDragEndpoint("start", event)}
           />
           <circle
-            cx={endX}
-            cy={endY}
+            cx={relativePoints[relativePoints.length - 1].x}
+            cy={relativePoints[relativePoints.length - 1].y}
             r={6}
             fill="white"
             stroke="#38BDF8"
@@ -682,6 +707,29 @@ export default function DiagramCanvas({
     currentX: number;
     currentY: number;
   }>(null);
+  const [polylineDraft, setPolylineDraft] = useState<null | {
+    points: DiagramLinePoint[];
+    current: DiagramLinePoint;
+    isDragging: boolean;
+    pendingFinalize: boolean;
+  }>(null);
+  const polylineDraftRef = useRef<typeof polylineDraft>(null);
+
+  const setPolylineDraftState = (
+    next:
+      | typeof polylineDraft
+      | ((prev: typeof polylineDraft) => typeof polylineDraft),
+  ) => {
+    setPolylineDraft((prev) => {
+      const resolved = typeof next === "function" ? next(prev) : next;
+      polylineDraftRef.current = resolved;
+      return resolved;
+    });
+  };
+
+  useEffect(() => {
+    polylineDraftRef.current = polylineDraft;
+  }, [polylineDraft]);
 
   const getElementBounds = (element: DiagramElement) => {
     const minX = Math.min(element.x, element.x + element.width);
@@ -720,6 +768,27 @@ export default function DiagramCanvas({
         })
       : null;
 
+  const previewPolylinePoints = polylineDraft
+    ? (() => {
+        const base = polylineDraft.points;
+        if (polylineDraft.pendingFinalize) {
+          return base;
+        }
+        return [...base, polylineDraft.current];
+      })()
+    : null;
+
+  const isPolylineMode =
+    activeTool &&
+    (activeTool.type === "arrow" || activeTool.type === "line") &&
+    activeTool.lineMode === "polyline";
+
+  useEffect(() => {
+    if (!isPolylineMode) {
+      setPolylineDraft(null);
+    }
+  }, [isPolylineMode]);
+
   const getGroupSelectionIds = (element: DiagramElement) => {
     if (!element.groupId) return [element.id];
     return elements
@@ -744,6 +813,51 @@ export default function DiagramCanvas({
         const rect = event.currentTarget.getBoundingClientRect();
         const startX = event.clientX - rect.left;
         const startY = event.clientY - rect.top;
+        if (activeTool && isPolylineMode) {
+          event.currentTarget.setPointerCapture(event.pointerId);
+          onSelect([]);
+          setSelectionBox(null);
+          setDrawState(null);
+          const snappedPoint = {
+            x: snapValue(startX),
+            y: snapValue(startY),
+          };
+          setPolylineDraftState((prev) => {
+            if (!prev) {
+              return {
+                points: [snappedPoint],
+                current: snappedPoint,
+                isDragging: true,
+                pendingFinalize: false,
+              };
+            }
+
+            if (!prev.isDragging) {
+              const last = prev.points[prev.points.length - 1];
+              const distance = Math.hypot(
+                snappedPoint.x - last.x,
+                snappedPoint.y - last.y,
+              );
+              if (distance <= gridSize) {
+                return {
+                  ...prev,
+                  current: last,
+                  pendingFinalize: true,
+                  isDragging: false,
+                };
+              }
+              return {
+                ...prev,
+                current: snappedPoint,
+                isDragging: true,
+                pendingFinalize: false,
+              };
+            }
+
+            return prev;
+          });
+          return;
+        }
         if (activeTool) {
           event.currentTarget.setPointerCapture(event.pointerId);
           setDrawState({ startX, startY, currentX: startX, currentY: startY });
@@ -755,6 +869,22 @@ export default function DiagramCanvas({
         onSelect([]);
       }}
       onPointerMove={(event) => {
+        if (polylineDraftRef.current) {
+          const rect = event.currentTarget.getBoundingClientRect();
+          const currentX = event.clientX - rect.left;
+          const currentY = event.clientY - rect.top;
+          setPolylineDraftState((prev) => {
+            if (!prev || prev.pendingFinalize) return prev;
+            return {
+              ...prev,
+              current: {
+                x: snapValue(currentX),
+                y: snapValue(currentY),
+              },
+            };
+          });
+          return;
+        }
         if (drawState) {
           const rect = event.currentTarget.getBoundingClientRect();
           const currentX = event.clientX - rect.left;
@@ -773,6 +903,78 @@ export default function DiagramCanvas({
         );
       }}
       onPointerUp={(event) => {
+        const activeDraft = polylineDraftRef.current;
+        if (activeDraft && isPolylineMode) {
+          if (activeDraft.isDragging) {
+            const rect = event.currentTarget.getBoundingClientRect();
+            const endX = event.clientX - rect.left;
+            const endY = event.clientY - rect.top;
+            const snappedPoint = {
+              x: snapValue(endX),
+              y: snapValue(endY),
+            };
+            setPolylineDraftState((prev) => {
+              if (!prev) return prev;
+              const last = prev.points[prev.points.length - 1];
+              const distance = Math.hypot(
+                snappedPoint.x - last.x,
+                snappedPoint.y - last.y,
+              );
+              if (distance < gridSize) {
+                return {
+                  ...prev,
+                  current: last,
+                  isDragging: false,
+                  pendingFinalize: false,
+                };
+              }
+              return {
+                points: [...prev.points, snappedPoint],
+                current: snappedPoint,
+                isDragging: false,
+                pendingFinalize: false,
+              };
+            });
+            try {
+              event.currentTarget.releasePointerCapture(event.pointerId);
+            } catch {
+              // no-op
+            }
+            return;
+          }
+
+          if (activeDraft.pendingFinalize && activeDraft.points.length >= 2) {
+            const rect = event.currentTarget.getBoundingClientRect();
+            const endX = event.clientX - rect.left;
+            const endY = event.clientY - rect.top;
+            const last = activeDraft.points[activeDraft.points.length - 1];
+            const distance = Math.hypot(endX - last.x, endY - last.y);
+            if (distance <= gridSize) {
+              const first = activeDraft.points[0];
+              onCreateElement?.({
+                type: activeTool.type,
+                style: activeTool.style,
+                arrowEnds: activeTool.arrowEnds,
+                lineMode: activeTool.lineMode,
+                startX: first.x,
+                startY: first.y,
+                endX: last.x,
+                endY: last.y,
+                points: activeDraft.points,
+              });
+              setPolylineDraftState(null);
+              try {
+                event.currentTarget.releasePointerCapture(event.pointerId);
+              } catch {
+                // no-op
+              }
+              return;
+            }
+            setPolylineDraftState((prev) =>
+              prev ? { ...prev, pendingFinalize: false } : prev,
+            );
+          }
+        }
         if (drawState && activeTool) {
           const rect = event.currentTarget.getBoundingClientRect();
           const endX = event.clientX - rect.left;
@@ -797,6 +999,7 @@ export default function DiagramCanvas({
             startY: drawState.startY,
             endX,
             endY,
+            lineMode: activeTool.lineMode,
           });
           setDrawState(null);
           try {
@@ -838,6 +1041,7 @@ export default function DiagramCanvas({
       onPointerCancel={() => {
         setSelectionBox(null);
         setDrawState(null);
+        setPolylineDraftState(null);
       }}
     >
       {elements.length === 0 && (
@@ -930,6 +1134,52 @@ export default function DiagramCanvas({
                 : undefined
             }
             strokeLinecap="round"
+          />
+        </svg>
+      )}
+      {previewPolylinePoints && previewPolylinePoints.length >= 2 && (
+        <svg
+          className="pointer-events-none absolute left-0 top-0 overflow-visible"
+          style={{ left: 0, top: 0, width: "100%", height: "100%" }}
+        >
+          {(activeTool?.type === "arrow") && (
+            <defs>
+              <marker
+                id="preview-polyline-arrowhead"
+                markerWidth="10"
+                markerHeight="7"
+                refX="8"
+                refY="3.5"
+                orient="auto-start-reverse"
+                markerUnits="strokeWidth"
+              >
+                <polygon
+                  points="0 0, 10 3.5, 0 7"
+                  fill="#0F172A"
+                />
+              </marker>
+            </defs>
+          )}
+          <polyline
+            points={previewPolylinePoints
+              .map((point) => `${point.x},${point.y}`)
+              .join(" ")}
+            stroke={activeTool?.type === "arrow" ? "#0F172A" : "#64748B"}
+            strokeWidth={2}
+            strokeDasharray={activeTool?.style === "dashed" ? "6 4" : "0"}
+            markerEnd={
+              activeTool?.type === "arrow" &&
+              (activeTool.arrowEnds === "end" || activeTool.arrowEnds === "both")
+                ? "url(#preview-polyline-arrowhead)"
+                : undefined
+            }
+            markerStart={
+              activeTool?.type === "arrow" && activeTool.arrowEnds === "both"
+                ? "url(#preview-polyline-arrowhead)"
+                : undefined
+            }
+            strokeLinecap="round"
+            fill="none"
           />
         </svg>
       )}
