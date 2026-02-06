@@ -53,6 +53,7 @@ Visit `http://localhost:3000/editor` to open the editor.
 - Place production icons under `public/icons` (you can use nested folders).
   - Contents under `public/icons` are ignored by Git via `.gitignore`.
   - The folder structure is used as-is in the palette.
+  - For example, if you download the Azure service SVG icons from the [Azure Architecture Center](https://learn.microsoft.com/en-us/azure/architecture/icons/) and place the extracted folder directly under the icons directory, the application will be able to use them.
 - Sample icons live under `public/icons-sample`.
   - Control whether they appear in the palette via `ICONS_SAMPLE_ENABLED`.
 
