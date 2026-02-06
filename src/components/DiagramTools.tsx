@@ -35,6 +35,11 @@ interface DiagramToolsProps {
     imageExportHint: string;
     loadSample: string;
   };
+  activeTool?: {
+    type: DiagramElementType;
+    style?: ArrowStyle;
+    arrowEnds?: ArrowEnds;
+  } | null;
   selected: DiagramElement | null;
   onAddElement: (
     type: DiagramElementType,
@@ -54,6 +59,7 @@ interface DiagramToolsProps {
 export default function DiagramTools({
   variant = "sidebar",
   labels,
+  activeTool,
   selected,
   onAddElement,
   onClear,
@@ -67,6 +73,8 @@ export default function DiagramTools({
 }: DiagramToolsProps) {
   const baseButtonClass =
     "rounded-md border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900";
+  const activeButtonClass =
+    "border-sky-400 bg-sky-50 text-sky-700";
   const menuItemClass =
     "block w-full px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50";
 
@@ -80,6 +88,16 @@ export default function DiagramTools({
   const summaryClass =
     `${baseButtonClass} cursor-pointer list-none select-none [&::-webkit-details-marker]:hidden`;
 
+  const isActive = (
+    type: DiagramElementType,
+    style?: ArrowStyle,
+    arrowEnds?: ArrowEnds,
+  ) =>
+    !!activeTool &&
+    activeTool.type === type &&
+    activeTool.style === style &&
+    activeTool.arrowEnds === arrowEnds;
+
   // Note: bring-front / send-back are intentionally not exposed here;
   // they are available via the canvas context menu.
   void onBringFront;
@@ -91,28 +109,36 @@ export default function DiagramTools({
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            className={baseButtonClass}
+            className={`${baseButtonClass} ${
+              isActive("box") ? activeButtonClass : ""
+            }`}
             onClick={() => onAddElement("box")}
           >
             {labels.toolBox}
           </button>
           <button
             type="button"
-            className={baseButtonClass}
+            className={`${baseButtonClass} ${
+              isActive("text") ? activeButtonClass : ""
+            }`}
             onClick={() => onAddElement("text")}
           >
             {labels.toolText}
           </button>
           <button
             type="button"
-            className={baseButtonClass}
+            className={`${baseButtonClass} ${
+              isActive("line", "solid") ? activeButtonClass : ""
+            }`}
             onClick={() => onAddElement("line", "solid")}
           >
             {labels.toolLineSolid}
           </button>
           <button
             type="button"
-            className={baseButtonClass}
+            className={`${baseButtonClass} ${
+              isActive("line", "dashed") ? activeButtonClass : ""
+            }`}
             onClick={() => onAddElement("line", "dashed")}
           >
             {labels.toolLineDashed}
@@ -120,28 +146,36 @@ export default function DiagramTools({
 
           <button
             type="button"
-            className={baseButtonClass}
+            className={`${baseButtonClass} ${
+              isActive("arrow", "solid", "end") ? activeButtonClass : ""
+            }`}
             onClick={() => onAddElement("arrow", "solid", "end")}
           >
             {labels.toolArrowSolidSingle}
           </button>
           <button
             type="button"
-            className={baseButtonClass}
+            className={`${baseButtonClass} ${
+              isActive("arrow", "dashed", "end") ? activeButtonClass : ""
+            }`}
             onClick={() => onAddElement("arrow", "dashed", "end")}
           >
             {labels.toolArrowDashedSingle}
           </button>
           <button
             type="button"
-            className={baseButtonClass}
+            className={`${baseButtonClass} ${
+              isActive("arrow", "solid", "both") ? activeButtonClass : ""
+            }`}
             onClick={() => onAddElement("arrow", "solid", "both")}
           >
             {labels.toolArrowSolidDouble}
           </button>
           <button
             type="button"
-            className={baseButtonClass}
+            className={`${baseButtonClass} ${
+              isActive("arrow", "dashed", "both") ? activeButtonClass : ""
+            }`}
             onClick={() => onAddElement("arrow", "dashed", "both")}
           >
             {labels.toolArrowDashedDouble}
@@ -234,14 +268,18 @@ export default function DiagramTools({
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
-            className={baseButtonClass}
+            className={`${baseButtonClass} ${
+              isActive("box") ? activeButtonClass : ""
+            }`}
             onClick={() => onAddElement("box")}
           >
             {labels.toolBox}
           </button>
           <button
             type="button"
-            className={baseButtonClass}
+            className={`${baseButtonClass} ${
+              isActive("text") ? activeButtonClass : ""
+            }`}
             onClick={() => onAddElement("text")}
           >
             {labels.toolText}
@@ -251,14 +289,18 @@ export default function DiagramTools({
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
-            className={baseButtonClass}
+            className={`${baseButtonClass} ${
+              isActive("line", "solid") ? activeButtonClass : ""
+            }`}
             onClick={() => onAddElement("line", "solid")}
           >
             {labels.toolLineSolid}
           </button>
           <button
             type="button"
-            className={baseButtonClass}
+            className={`${baseButtonClass} ${
+              isActive("line", "dashed") ? activeButtonClass : ""
+            }`}
             onClick={() => onAddElement("line", "dashed")}
           >
             {labels.toolLineDashed}
@@ -266,14 +308,18 @@ export default function DiagramTools({
 
           <button
             type="button"
-            className={baseButtonClass}
+            className={`${baseButtonClass} ${
+              isActive("arrow", "solid", "end") ? activeButtonClass : ""
+            }`}
             onClick={() => onAddElement("arrow", "solid", "end")}
           >
             {labels.toolArrowSolidSingle}
           </button>
           <button
             type="button"
-            className={baseButtonClass}
+            className={`${baseButtonClass} ${
+              isActive("arrow", "dashed", "end") ? activeButtonClass : ""
+            }`}
             onClick={() => onAddElement("arrow", "dashed", "end")}
           >
             {labels.toolArrowDashedSingle}
@@ -281,14 +327,18 @@ export default function DiagramTools({
 
           <button
             type="button"
-            className={baseButtonClass}
+            className={`${baseButtonClass} ${
+              isActive("arrow", "solid", "both") ? activeButtonClass : ""
+            }`}
             onClick={() => onAddElement("arrow", "solid", "both")}
           >
             {labels.toolArrowSolidDouble}
           </button>
           <button
             type="button"
-            className={baseButtonClass}
+            className={`${baseButtonClass} ${
+              isActive("arrow", "dashed", "both") ? activeButtonClass : ""
+            }`}
             onClick={() => onAddElement("arrow", "dashed", "both")}
           >
             {labels.toolArrowDashedDouble}

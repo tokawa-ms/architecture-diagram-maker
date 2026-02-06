@@ -89,6 +89,39 @@ const snapLinePoints = (args: {
   };
 };
 
+const enforceMinDistance = (start: number, end: number, min: number) => {
+  if (Math.abs(end - start) >= min) return { start, end };
+  return end >= start
+    ? { start, end: start + min }
+    : { start, end: start - min };
+};
+
+const snapDragPoints = (args: {
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+}) => {
+  const minSize = GRID_SIZE * 2;
+  const snappedStartX = snapValue(args.startX);
+  const snappedStartY = snapValue(args.startY);
+  const snappedEndX = snapValue(args.endX);
+  const snappedEndY = snapValue(args.endY);
+
+  const { start: startX, end: endX } = enforceMinDistance(
+    snappedStartX,
+    snappedEndX,
+    minSize,
+  );
+  const { start: startY, end: endY } = enforceMinDistance(
+    snappedStartY,
+    snappedEndY,
+    minSize,
+  );
+
+  return { startX, startY, endX, endY };
+};
+
 const snapElementToGrid = (element: DiagramElement): DiagramElement => {
   if (element.type === "arrow" || element.type === "line") {
     return {
@@ -194,6 +227,103 @@ const createElement = (
   }
 };
 
+const createElementFromDrag = (args: {
+  type: DiagramElementType;
+  labels: {
+    box: string;
+    text: string;
+    icon: string;
+  };
+  style?: ArrowStyle;
+  arrowEnds?: ArrowEnds;
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+}): DiagramElement => {
+  const base = {
+    id: `${args.type}-${Date.now()}`,
+    rotation: 0,
+    zIndex: 1,
+    opacity: 1,
+  };
+
+  if (args.type === "arrow" || args.type === "line") {
+    let snapped = snapLinePoints({
+      startX: args.startX,
+      startY: args.startY,
+      endX: args.endX,
+      endY: args.endY,
+    });
+    if (snapped.startX === snapped.endX && snapped.startY === snapped.endY) {
+      const endX = snapped.startX + GRID_SIZE * 6;
+      snapped = {
+        ...snapped,
+        endX,
+        width: endX - snapped.startX,
+      };
+    }
+    if (args.type === "arrow") {
+      return {
+        ...base,
+        type: "arrow",
+        ...snapped,
+        stroke: "#0F172A",
+        strokeWidth: 2,
+        style: args.style ?? "solid",
+        arrowEnds: args.arrowEnds ?? "end",
+      } as DiagramElement;
+    }
+    return {
+      ...base,
+      type: "line",
+      ...snapped,
+      stroke: "#64748B",
+      strokeWidth: 2,
+      style: args.style ?? "dashed",
+    } as DiagramElement;
+  }
+
+  const snapped = snapDragPoints({
+    startX: args.startX,
+    startY: args.startY,
+    endX: args.endX,
+    endY: args.endY,
+  });
+  const x = Math.min(snapped.startX, snapped.endX);
+  const y = Math.min(snapped.startY, snapped.endY);
+  const width = Math.abs(snapped.endX - snapped.startX);
+  const height = Math.abs(snapped.endY - snapped.startY);
+
+  if (args.type === "box") {
+    return {
+      ...base,
+      type: "box",
+      x,
+      y,
+      width,
+      height,
+      fill: "#F8FAFC",
+      border: "#CBD5F5",
+      borderWidth: 2,
+      radius: 12,
+      label: args.labels.box,
+    } as DiagramElement;
+  }
+
+  return {
+    ...base,
+    type: "text",
+    x,
+    y,
+    width,
+    height,
+    text: args.labels.text,
+    fontSize: 16,
+    color: "#0F172A",
+  } as DiagramElement;
+};
+
 const downloadJson = (content: string, filename: string) => {
   const blob = new Blob([content], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -218,6 +348,11 @@ export default function EditorPage() {
   const [idPrefix, setIdPrefix] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showGrid, setShowGrid] = useState(true);
+  const [activeTool, setActiveTool] = useState<null | {
+    type: DiagramElementType;
+    style?: ArrowStyle;
+    arrowEnds?: ArrowEnds;
+  }>(null);
   const [storageModalOpen, setStorageModalOpen] = useState(false);
   const [historyLimit, setHistoryLimit] = useState(() => getHistoryLimit());
   const [historyPast, setHistoryPast] = useState<
@@ -532,9 +667,41 @@ export default function EditorPage() {
     style?: ArrowStyle,
     ends?: ArrowEnds,
   ) => {
-    console.log("Adding element", type);
+    const nextTool = { type, style, arrowEnds: ends };
+    setActiveTool((prev) => {
+      if (
+        prev &&
+        prev.type === nextTool.type &&
+        prev.style === nextTool.style &&
+        prev.arrowEnds === nextTool.arrowEnds
+      ) {
+        return null;
+      }
+      return nextTool;
+    });
+  };
+
+  const handleCreateElementFromDrag = (args: {
+    type: DiagramElementType;
+    style?: ArrowStyle;
+    arrowEnds?: ArrowEnds;
+    startX: number;
+    startY: number;
+    endX: number;
+    endY: number;
+  }) => {
+    console.log("Adding element from drag", args.type);
     recordHistory();
-    const element = createElement(type, defaultLabels, style, ends);
+    const element = createElementFromDrag({
+      type: args.type,
+      labels: defaultLabels,
+      style: args.style,
+      arrowEnds: args.arrowEnds,
+      startX: args.startX,
+      startY: args.startY,
+      endX: args.endX,
+      endY: args.endY,
+    });
     updateElements((elements) => [...elements, element]);
     applySelection([element.id]);
   };
@@ -1192,6 +1359,7 @@ export default function EditorPage() {
                     imageExportHint: messages.imageExportHint,
                     loadSample: messages.loadSample,
                   }}
+                  activeTool={activeTool}
                   selected={selectedElement}
                   onAddElement={handleAddElement}
                   onClear={handleClear}
@@ -1235,11 +1403,17 @@ export default function EditorPage() {
                   selectedIds={selectedIds}
                   emptyMessage={messages.canvasEmpty}
                   showGrid={showGrid}
+                  activeTool={activeTool}
+                  previewLabels={{
+                    box: defaultLabels.box,
+                    text: defaultLabels.text,
+                  }}
                   onSelect={(ids) => {
                     applySelection(ids);
                     setContextMenu(null);
                   }}
                   onUpdate={handleUpdateElement}
+                  onCreateElement={handleCreateElementFromDrag}
                   onMoveSelection={handleMoveSelection}
                   onInteractionStart={startInteraction}
                   onInteractionEnd={endInteraction}
