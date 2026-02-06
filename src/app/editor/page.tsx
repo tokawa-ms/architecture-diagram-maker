@@ -21,7 +21,12 @@ import type {
   DiagramLineElement,
   DiagramLinePoint,
 } from "@/lib/types";
-import { exportDiagramJson, saveDiagram } from "@/lib/storage";
+import {
+  exportDiagramJson,
+  loadDraftDiagram,
+  saveDiagram,
+  saveDraftDiagram,
+} from "@/lib/storage";
 import {
   getExportScale,
   getHistoryLimit,
@@ -438,7 +443,7 @@ export default function EditorPage() {
   const language = useLanguage();
   const messages = getMessages(language);
   const [diagram, setDiagram] = useState<DiagramDocument>(() =>
-    createEmptyDocument(messages.defaultDiagramName),
+    loadDraftDiagram() ?? createEmptyDocument(messages.defaultDiagramName),
   );
   const [idPrefix, setIdPrefix] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -580,6 +585,29 @@ export default function EditorPage() {
     };
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      saveDraftDiagram(diagram);
+    }, 300);
+    return () => window.clearTimeout(handle);
+  }, [diagram]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        saveDraftDiagram(diagramRef.current);
+      }
+    };
+    window.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => window.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      saveDraftDiagram(diagramRef.current);
+    };
   }, []);
 
   const createSnapshot = useCallback(() => {

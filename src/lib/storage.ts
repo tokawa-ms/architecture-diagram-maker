@@ -8,6 +8,7 @@ import {
 
 const STORAGE_INDEX_KEY = "architecture-diagram:index";
 const STORAGE_PREFIX = "architecture-diagram:doc:";
+const STORAGE_DRAFT_KEY = "architecture-diagram:draft";
 
 export const toStorageKey = (id: string) => `${STORAGE_PREFIX}${id}`;
 
@@ -165,5 +166,39 @@ export const importDiagramJson = (value: string): DiagramDocument | null => {
   } catch (error) {
     console.error("Failed to import diagram JSON", error);
     return null;
+  }
+};
+
+export const loadDraftDiagram = (): DiagramDocument | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const raw = window.localStorage.getItem(STORAGE_DRAFT_KEY);
+  if (!raw) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    if (!isDiagramDocument(parsed)) {
+      return null;
+    }
+    return normalizeDiagramDocument(parsed);
+  } catch (error) {
+    console.error("Failed to parse draft diagram", error);
+    return null;
+  }
+};
+
+export const saveDraftDiagram = (document: DiagramDocument) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+  try {
+    window.localStorage.setItem(
+      STORAGE_DRAFT_KEY,
+      JSON.stringify(serializeDiagram(document)),
+    );
+  } catch (error) {
+    console.error("Failed to persist draft diagram", error);
   }
 };
