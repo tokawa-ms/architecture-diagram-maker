@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { useLanguage } from "@/components/useLanguage";
@@ -24,11 +24,6 @@ export default function SettingsPage() {
     { href: "/settings", label: messages.navSettings },
     { href: "/about", label: messages.navAbout },
   ];
-
-  useEffect(() => {
-    setHistoryLimitState(getHistoryLimit());
-    setExportScaleState(getExportScale());
-  }, []);
 
   const handleHistoryLimitChange = (value: number) => {
     setHistoryLimit(value);
