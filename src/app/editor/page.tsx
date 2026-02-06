@@ -36,6 +36,83 @@ const createEmptyDocument = (name: string): DiagramDocument => {
   };
 };
 
+const GRID_SIZE = 10;
+
+const snapValue = (value: number, gridSize = GRID_SIZE) =>
+  Math.round(value / gridSize) * gridSize;
+
+const snapSize = (value: number) => {
+  const snapped = Math.max(GRID_SIZE * 2, snapValue(value));
+  const units = Math.round(snapped / GRID_SIZE);
+  return units % 2 === 0 ? snapped : snapped + GRID_SIZE;
+};
+
+const snapRectByCenter = (args: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}) => {
+  const snappedWidth = snapSize(args.width);
+  const snappedHeight = snapSize(args.height);
+  const centerX = args.x + args.width / 2;
+  const centerY = args.y + args.height / 2;
+  const snappedCenterX = snapValue(centerX);
+  const snappedCenterY = snapValue(centerY);
+  return {
+    x: snappedCenterX - snappedWidth / 2,
+    y: snappedCenterY - snappedHeight / 2,
+    width: snappedWidth,
+    height: snappedHeight,
+  };
+};
+
+const snapLinePoints = (args: {
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+}) => {
+  const startX = snapValue(args.startX);
+  const startY = snapValue(args.startY);
+  const endX = snapValue(args.endX);
+  const endY = snapValue(args.endY);
+  return {
+    startX,
+    startY,
+    endX,
+    endY,
+    x: startX,
+    y: startY,
+    width: endX - startX,
+    height: endY - startY,
+  };
+};
+
+const snapElementToGrid = (element: DiagramElement): DiagramElement => {
+  if (element.type === "arrow" || element.type === "line") {
+    return {
+      ...element,
+      ...snapLinePoints({
+        startX: element.startX,
+        startY: element.startY,
+        endX: element.endX,
+        endY: element.endY,
+      }),
+    } as DiagramElement;
+  }
+
+  return {
+    ...element,
+    ...snapRectByCenter({
+      x: element.x,
+      y: element.y,
+      width: element.width,
+      height: element.height,
+    }),
+  } as DiagramElement;
+};
+
 const createElement = (
   type: DiagramElementType,
   labels: {
@@ -59,7 +136,7 @@ const createElement = (
 
   switch (type) {
     case "box":
-      return {
+      return snapElementToGrid({
         ...base,
         type: "box",
         fill: "#F8FAFC",
@@ -67,17 +144,17 @@ const createElement = (
         borderWidth: 2,
         radius: 12,
         label: labels.box,
-      };
+      } as DiagramElement);
     case "text":
-      return {
+      return snapElementToGrid({
         ...base,
         type: "text",
         text: labels.text,
         fontSize: 16,
         color: "#0F172A",
-      };
+      } as DiagramElement);
     case "arrow":
-      return {
+      return snapElementToGrid({
         ...base,
         type: "arrow",
         width: 160,
@@ -90,9 +167,9 @@ const createElement = (
         strokeWidth: 2,
         style: style ?? "solid",
         arrowEnds: arrowEnds ?? "end",
-      };
+      } as DiagramElement);
     case "line":
-      return {
+      return snapElementToGrid({
         ...base,
         type: "line",
         width: 200,
@@ -104,16 +181,16 @@ const createElement = (
         stroke: "#64748B",
         strokeWidth: 2,
         style: style ?? "dashed",
-      };
+      } as DiagramElement);
     default:
-      return {
+      return snapElementToGrid({
         ...base,
         type: "icon",
         width: 80,
         height: 80,
         src: "/icons-sample/azure.svg",
         label: labels.icon,
-      };
+      } as DiagramElement);
   }
 };
 
@@ -140,6 +217,7 @@ export default function EditorPage() {
   );
   const [idPrefix, setIdPrefix] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [showGrid, setShowGrid] = useState(true);
   const [storageModalOpen, setStorageModalOpen] = useState(false);
   const [historyLimit, setHistoryLimit] = useState(() => getHistoryLimit());
   const [historyPast, setHistoryPast] = useState<
@@ -509,20 +587,45 @@ export default function EditorPage() {
                 ? nextStartY + updates.height
               : element.endY;
 
-          const merged = { ...element, ...updates } as DiagramElement;
-          return {
-            ...merged,
+          const snapped = snapLinePoints({
             startX: nextStartX,
             startY: nextStartY,
             endX: nextEndX,
             endY: nextEndY,
-            x: nextStartX,
-            y: nextStartY,
-            width: nextEndX - nextStartX,
-            height: nextEndY - nextStartY,
+          });
+
+          return {
+            ...(element as DiagramElement),
+            ...updates,
+            ...snapped,
           } as DiagramElement;
         }
-        return { ...element, ...updates } as DiagramElement;
+
+        const nextX =
+          "x" in updates && typeof updates.x === "number" ? updates.x : element.x;
+        const nextY =
+          "y" in updates && typeof updates.y === "number" ? updates.y : element.y;
+        const nextWidth =
+          "width" in updates && typeof updates.width === "number"
+            ? updates.width
+            : element.width;
+        const nextHeight =
+          "height" in updates && typeof updates.height === "number"
+            ? updates.height
+            : element.height;
+
+        const snapped = snapRectByCenter({
+          x: nextX,
+          y: nextY,
+          width: nextWidth,
+          height: nextHeight,
+        });
+
+        return {
+          ...(element as DiagramElement),
+          ...updates,
+          ...snapped,
+        } as DiagramElement;
       }),
     );
   };
@@ -586,14 +689,37 @@ export default function EditorPage() {
     if (selectedElements.length === 0) return;
     recordHistory();
     const timestamp = Date.now();
-    const duplicates = selectedElements.map((element, index) => ({
-      ...element,
-      id: `${element.id}-copy-${timestamp}-${index}`,
-      x: element.x + 20,
-      y: element.y + 20,
-      zIndex: element.zIndex + 1,
-      groupId: undefined,
-    }));
+    const duplicates = selectedElements.map((element, index) => {
+      if (element.type === "arrow" || element.type === "line") {
+        const snapped = snapLinePoints({
+          startX: element.startX + 20,
+          startY: element.startY + 20,
+          endX: element.endX + 20,
+          endY: element.endY + 20,
+        });
+        return {
+          ...element,
+          ...snapped,
+          id: `${element.id}-copy-${timestamp}-${index}`,
+          zIndex: element.zIndex + 1,
+          groupId: undefined,
+        } as DiagramElement;
+      }
+
+      const snapped = snapRectByCenter({
+        x: element.x + 20,
+        y: element.y + 20,
+        width: element.width,
+        height: element.height,
+      });
+      return {
+        ...element,
+        ...snapped,
+        id: `${element.id}-copy-${timestamp}-${index}`,
+        zIndex: element.zIndex + 1,
+        groupId: undefined,
+      } as DiagramElement;
+    });
     updateElements((elements) => [...elements, ...duplicates]);
     setSelectedIds(duplicates.map((element) => element.id));
   };
@@ -619,17 +745,21 @@ export default function EditorPage() {
       elements.map((element) => {
         if (!ids.includes(element.id)) return element;
         if (element.type === "arrow" || element.type === "line") {
-          return {
-            ...element,
+          const snapped = snapLinePoints({
             startX: element.startX + deltaX,
             startY: element.startY + deltaY,
             endX: element.endX + deltaX,
             endY: element.endY + deltaY,
-            x: element.x + deltaX,
-            y: element.y + deltaY,
-          } as DiagramElement;
+          });
+          return { ...element, ...snapped } as DiagramElement;
         }
-        return { ...element, x: element.x + deltaX, y: element.y + deltaY };
+        const snapped = snapRectByCenter({
+          x: element.x + deltaX,
+          y: element.y + deltaY,
+          width: element.width,
+          height: element.height,
+        });
+        return { ...element, ...snapped } as DiagramElement;
       }),
     );
   };
@@ -936,6 +1066,7 @@ export default function EditorPage() {
             #diagram-canvas-root .text-slate-400 { color: rgb(148, 163, 184) !important; }
             #diagram-canvas-root .text-slate-700 { color: rgb(51, 65, 85) !important; }
             #diagram-canvas-root .shadow-inner { box-shadow: none !important; }
+            #diagram-canvas-root { background-image: none !important; }
             /* Hide SVG arrows/lines during export; we draw them on canvas to match marker sizing reliably. */
             #diagram-canvas-root svg { opacity: 0 !important; }
           `;
@@ -1013,6 +1144,23 @@ export default function EditorPage() {
                   onChange={(event) => setIdPrefix(event.target.value)}
                 />
               </div>
+              <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs text-slate-600">
+                <label className="text-[11px] font-semibold text-slate-500">
+                  {messages.toolGridToggle}
+                </label>
+                <button
+                  type="button"
+                  className={`h-[30px] w-[120px] rounded-full border px-3 text-[11px] font-semibold transition ${
+                    showGrid
+                      ? "border-sky-300 bg-sky-50 text-sky-700"
+                      : "border-slate-200 bg-white text-slate-500"
+                  }`}
+                  onClick={() => setShowGrid((prev) => !prev)}
+                  aria-pressed={showGrid}
+                >
+                  {showGrid ? "ON" : "OFF"}
+                </button>
+              </div>
               <div className="lg:max-w-[calc(100%-220px)]">
                 <DiagramTools
                   variant="toolbar"
@@ -1082,6 +1230,7 @@ export default function EditorPage() {
                   )}
                   selectedIds={selectedIds}
                   emptyMessage={messages.canvasEmpty}
+                  showGrid={showGrid}
                   onSelect={(ids) => {
                     applySelection(ids);
                     setContextMenu(null);

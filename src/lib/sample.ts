@@ -1,5 +1,82 @@
 import type { DiagramDocument, DiagramElement } from "./types";
 
+const GRID_SIZE = 10;
+
+const snapValue = (value: number, gridSize = GRID_SIZE) =>
+  Math.round(value / gridSize) * gridSize;
+
+const snapSize = (value: number) => {
+  const snapped = Math.max(GRID_SIZE * 2, snapValue(value));
+  const units = Math.round(snapped / GRID_SIZE);
+  return units % 2 === 0 ? snapped : snapped + GRID_SIZE;
+};
+
+const snapRectByCenter = (args: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}) => {
+  const snappedWidth = snapSize(args.width);
+  const snappedHeight = snapSize(args.height);
+  const centerX = args.x + args.width / 2;
+  const centerY = args.y + args.height / 2;
+  const snappedCenterX = snapValue(centerX);
+  const snappedCenterY = snapValue(centerY);
+  return {
+    x: snappedCenterX - snappedWidth / 2,
+    y: snappedCenterY - snappedHeight / 2,
+    width: snappedWidth,
+    height: snappedHeight,
+  };
+};
+
+const snapLinePoints = (args: {
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+}) => {
+  const startX = snapValue(args.startX);
+  const startY = snapValue(args.startY);
+  const endX = snapValue(args.endX);
+  const endY = snapValue(args.endY);
+  return {
+    startX,
+    startY,
+    endX,
+    endY,
+    x: startX,
+    y: startY,
+    width: endX - startX,
+    height: endY - startY,
+  };
+};
+
+const snapElementToGrid = (element: DiagramElement): DiagramElement => {
+  if (element.type === "arrow" || element.type === "line") {
+    return {
+      ...element,
+      ...snapLinePoints({
+        startX: element.startX,
+        startY: element.startY,
+        endX: element.endX,
+        endY: element.endY,
+      }),
+    } as DiagramElement;
+  }
+
+  return {
+    ...element,
+    ...snapRectByCenter({
+      x: element.x,
+      y: element.y,
+      width: element.width,
+      height: element.height,
+    }),
+  } as DiagramElement;
+};
+
 const baseElementDimensions = {
   width: 120,
   height: 80,
@@ -118,9 +195,11 @@ export const createSampleDiagram = (labels: SampleLabels): DiagramDocument => {
     name: labels.name,
     createdAt: now,
     updatedAt: now,
-    elements: sampleElements.map((element) => ({
-      ...baseElementDimensions,
-      ...element,
-    })),
+    elements: sampleElements.map((element) =>
+      snapElementToGrid({
+        ...baseElementDimensions,
+        ...element,
+      }),
+    ),
   };
 };

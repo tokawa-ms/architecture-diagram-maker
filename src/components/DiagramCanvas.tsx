@@ -7,6 +7,7 @@ interface DiagramCanvasProps {
   elements: DiagramElement[];
   selectedIds: string[];
   emptyMessage: string;
+  showGrid: boolean;
   onSelect: (ids: string[]) => void;
   onUpdate: (id: string, updates: Partial<DiagramElement>) => void;
   onInteractionStart?: () => void;
@@ -611,6 +612,7 @@ export default function DiagramCanvas({
   elements,
   selectedIds,
   emptyMessage,
+  showGrid,
   onSelect,
   onUpdate,
   onInteractionStart,
@@ -618,6 +620,7 @@ export default function DiagramCanvas({
   onMoveSelection,
   onOpenContextMenu,
 }: DiagramCanvasProps) {
+  const gridSize = 10;
   const [selectionBox, setSelectionBox] = useState<null | {
     startX: number;
     startY: number;
@@ -655,6 +658,13 @@ export default function DiagramCanvas({
     <div
       id="diagram-canvas-root"
       className="relative isolate z-0 h-full min-h-[520px] w-full rounded-2xl border border-dashed border-slate-300 bg-white shadow-inner"
+      style={{
+        backgroundImage: showGrid
+          ? "linear-gradient(to right, rgba(148, 163, 184, 0.25) 1px, transparent 1px), linear-gradient(to bottom, rgba(148, 163, 184, 0.25) 1px, transparent 1px)"
+          : "none",
+        backgroundSize: showGrid ? `${gridSize}px ${gridSize}px` : undefined,
+        backgroundPosition: showGrid ? "0 0" : undefined,
+      }}
       onPointerDown={(event) => {
         if (event.button !== 0) return;
         if (event.target !== event.currentTarget) return;
