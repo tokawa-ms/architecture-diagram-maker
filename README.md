@@ -53,6 +53,7 @@ npm run dev
 - 本番用アイコンは `public/icons` 配下にフォルダ構造で配置してください。
   - `public/icons` の中身は `.gitignore` により Git にコミットされません。
   - フォルダ構造はそのままパレットのフォルダ構造として表示されます。
+  - 例えば、[Azure アーキテクチャセンター](https://learn.microsoft.com/ja-jp/azure/architecture/icons/) から、Azure サービスの SVG アイコンをダウンロードして、展開したフォルダをそのまま icons 配下に配置すれば、このアプリから利用可能になります。
 - サンプルアイコンは `public/icons-sample` にあります。
   - パレットに表示するかは `ICONS_SAMPLE_ENABLED` で制御します。
 
