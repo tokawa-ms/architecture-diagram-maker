@@ -22,6 +22,7 @@ import type {
   DiagramLinePoint,
 } from "@/lib/types";
 import {
+  appendHistoryEntry,
   exportDiagramJson,
   loadDraftDiagram,
   saveDiagram,
@@ -467,6 +468,7 @@ export default function EditorPage() {
   >([]);
   const historyPastRef = useRef(historyPast);
   const historyFutureRef = useRef(historyFuture);
+  const historyEntryRef = useRef<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{
     elementIds: string[];
     left: number;
@@ -482,6 +484,7 @@ export default function EditorPage() {
     { href: "/", label: messages.navHome },
     { href: "/editor", label: messages.navEditor },
     { href: "/items", label: messages.navItems },
+    { href: "/history", label: messages.navHistory },
     { href: "/settings", label: messages.navSettings },
     { href: "/about", label: messages.navAbout },
   ];
@@ -593,6 +596,20 @@ export default function EditorPage() {
     }, 300);
     return () => window.clearTimeout(handle);
   }, [diagram]);
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      if (isRestoringRef.current) {
+        return;
+      }
+      if (historyEntryRef.current === diagramRef.current.updatedAt) {
+        return;
+      }
+      appendHistoryEntry(diagramRef.current, historyLimitRef.current);
+      historyEntryRef.current = diagramRef.current.updatedAt;
+    }, 350);
+    return () => window.clearTimeout(handle);
+  }, [diagram.updatedAt]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {

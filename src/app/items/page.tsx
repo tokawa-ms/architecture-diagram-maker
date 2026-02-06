@@ -27,6 +27,7 @@ export default function ItemsPage() {
     { href: "/", label: messages.navHome },
     { href: "/editor", label: messages.navEditor },
     { href: "/items", label: messages.navItems },
+    { href: "/history", label: messages.navHistory },
     { href: "/settings", label: messages.navSettings },
     { href: "/about", label: messages.navAbout },
   ];
