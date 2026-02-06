@@ -1518,7 +1518,21 @@ export default function EditorPage() {
   const canUngroup = selectedElements.some((element) => element.groupId);
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div
+      className="flex min-h-screen flex-col"
+      onContextMenuCapture={(event) => {
+        const target = event.target;
+        if (
+          target instanceof HTMLElement &&
+          (target.tagName === "INPUT" ||
+            target.tagName === "TEXTAREA" ||
+            target.isContentEditable)
+        ) {
+          return;
+        }
+        event.preventDefault();
+      }}
+    >
       <SiteHeader
         navItems={navItems}
         currentLanguage={language}
