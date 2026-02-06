@@ -1647,6 +1647,8 @@ export default function EditorPage() {
                   onInteractionStart={startInteraction}
                   onInteractionEnd={endInteraction}
                   onOpenContextMenu={(args) => {
+                    setInteractionMode("edit");
+                    setActiveTool(null);
                     const position = clampContextMenuPosition(args);
                     const nextSelection = resolveSelection([args.elementId]);
                     setSelectedIds(nextSelection);
