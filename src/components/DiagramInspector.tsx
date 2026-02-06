@@ -24,6 +24,10 @@ interface DiagramInspectorProps {
     propertyFontSize: string;
     propertyRadius: string;
     propertyArrowStyle: string;
+    propertyStartX: string;
+    propertyStartY: string;
+    propertyEndX: string;
+    propertyEndY: string;
   };
   onUpdate: (updates: Partial<DiagramElement>) => void;
 }
@@ -31,7 +35,7 @@ interface DiagramInspectorProps {
 const NumberInput = ({
   label,
   value,
-  min = 0,
+  min,
   max,
   step = 1,
   onChange,
@@ -184,13 +188,6 @@ export default function DiagramInspector({
               value={selected.stroke}
               onChange={(value) => onUpdate({ stroke: value })}
             />
-            <NumberInput
-              label={labels.propertyStrokeWidth}
-              value={selected.strokeWidth}
-              min={1}
-              max={8}
-              onChange={(value) => onUpdate({ strokeWidth: value })}
-            />
           </div>
         )}
         <div className="grid grid-cols-2 gap-3">
@@ -202,20 +199,54 @@ export default function DiagramInspector({
             step={0.1}
             onChange={(value) => onUpdate({ opacity: value })}
           />
-          <NumberInput
-            label={labels.propertyWidth}
-            value={selected.width}
-            min={20}
-            max={600}
-            onChange={(value) => onUpdate({ width: value })}
-          />
-          <NumberInput
-            label={labels.propertyHeight}
-            value={selected.height}
-            min={20}
-            max={600}
-            onChange={(value) => onUpdate({ height: value })}
-          />
+          {(selected.type === "arrow" || selected.type === "line") ? (
+            <>
+              <NumberInput
+                label={labels.propertyStrokeWidth}
+                value={selected.strokeWidth}
+                min={1}
+                max={8}
+                onChange={(value) => onUpdate({ strokeWidth: value })}
+              />
+              <NumberInput
+                label={labels.propertyStartX}
+                value={selected.startX}
+                onChange={(value) => onUpdate({ startX: value })}
+              />
+              <NumberInput
+                label={labels.propertyStartY}
+                value={selected.startY}
+                onChange={(value) => onUpdate({ startY: value })}
+              />
+              <NumberInput
+                label={labels.propertyEndX}
+                value={selected.endX}
+                onChange={(value) => onUpdate({ endX: value })}
+              />
+              <NumberInput
+                label={labels.propertyEndY}
+                value={selected.endY}
+                onChange={(value) => onUpdate({ endY: value })}
+              />
+            </>
+          ) : (
+            <>
+              <NumberInput
+                label={labels.propertyWidth}
+                value={selected.width}
+                min={20}
+                max={600}
+                onChange={(value) => onUpdate({ width: value })}
+              />
+              <NumberInput
+                label={labels.propertyHeight}
+                value={selected.height}
+                min={20}
+                max={600}
+                onChange={(value) => onUpdate({ height: value })}
+              />
+            </>
+          )}
         </div>
       </div>
     </div>
