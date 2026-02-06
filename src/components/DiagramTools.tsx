@@ -123,238 +123,242 @@ export default function DiagramTools({
   if (variant === "toolbar") {
     return (
       <div className="relative z-10 rounded-2xl border border-slate-200 bg-white px-3 py-2">
-        <div className="grid auto-cols-max grid-flow-col grid-rows-2 gap-2 overflow-x-auto">
-          <button
-            type="button"
-            className={`${baseButtonClass} ${
-              isMoveResizeActive ? activeButtonClass : ""
-            }`}
-            onClick={() => onChangeMode("edit")}
-          >
-            {labels.toolMoveResize}
-          </button>
-          <div aria-hidden="true" />
-          <button
-            type="button"
-            className={`${baseButtonClass} ${
-              isActive("box") ? activeButtonClass : ""
-            }`}
-            onClick={() => onAddElement("box")}
-          >
-            {labels.toolBox}
-          </button>
-          <button
-            type="button"
-            className={`${baseButtonClass} ${
-              isActive("text") ? activeButtonClass : ""
-            }`}
-            onClick={() => onAddElement("text")}
-          >
-            {labels.toolText}
-          </button>
-          <button
-            type="button"
-            className={`${baseButtonClass} ${
-              isActive("line", "solid") ? activeButtonClass : ""
-            }`}
-            onClick={() => onAddElement("line", "solid")}
-          >
-            {labels.toolLineSolid}
-          </button>
-          <button
-            type="button"
-            className={`${baseButtonClass} ${
-              isActive("line", "dashed") ? activeButtonClass : ""
-            }`}
-            onClick={() => onAddElement("line", "dashed")}
-          >
-            {labels.toolLineDashed}
-          </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="grid auto-cols-max grid-flow-col grid-rows-2 gap-2 overflow-x-auto rounded-xl border border-slate-200 bg-slate-50/70 p-2">
+            <button
+              type="button"
+              className={`${baseButtonClass} ${
+                isMoveResizeActive ? activeButtonClass : ""
+              }`}
+              onClick={() => onChangeMode("edit")}
+            >
+              {labels.toolMoveResize}
+            </button>
+            <div aria-hidden="true" />
+            <button
+              type="button"
+              className={`${baseButtonClass} ${
+                isActive("box") ? activeButtonClass : ""
+              }`}
+              onClick={() => onAddElement("box")}
+            >
+              {labels.toolBox}
+            </button>
+            <button
+              type="button"
+              className={`${baseButtonClass} ${
+                isActive("text") ? activeButtonClass : ""
+              }`}
+              onClick={() => onAddElement("text")}
+            >
+              {labels.toolText}
+            </button>
+            <button
+              type="button"
+              className={`${baseButtonClass} ${
+                isActive("line", "solid") ? activeButtonClass : ""
+              }`}
+              onClick={() => onAddElement("line", "solid")}
+            >
+              {labels.toolLineSolid}
+            </button>
+            <button
+              type="button"
+              className={`${baseButtonClass} ${
+                isActive("line", "dashed") ? activeButtonClass : ""
+              }`}
+              onClick={() => onAddElement("line", "dashed")}
+            >
+              {labels.toolLineDashed}
+            </button>
 
-          <button
-            type="button"
-            className={`${baseButtonClass} ${
-              isActive("arrow", "solid", "end") ? activeButtonClass : ""
-            }`}
-            onClick={() => onAddElement("arrow", "solid", "end")}
-          >
-            {labels.toolArrowSolidSingle}
-          </button>
-          <button
-            type="button"
-            className={`${baseButtonClass} ${
-              isActive("arrow", "dashed", "end") ? activeButtonClass : ""
-            }`}
-            onClick={() => onAddElement("arrow", "dashed", "end")}
-          >
-            {labels.toolArrowDashedSingle}
-          </button>
-          <button
-            type="button"
-            className={`${baseButtonClass} ${
-              isActive("arrow", "solid", "both") ? activeButtonClass : ""
-            }`}
-            onClick={() => onAddElement("arrow", "solid", "both")}
-          >
-            {labels.toolArrowSolidDouble}
-          </button>
-          <button
-            type="button"
-            className={`${baseButtonClass} ${
-              isActive("arrow", "dashed", "both") ? activeButtonClass : ""
-            }`}
-            onClick={() => onAddElement("arrow", "dashed", "both")}
-          >
-            {labels.toolArrowDashedDouble}
-          </button>
-          <button
-            type="button"
-            className={`${baseButtonClass} ${
-              isActive("line", "solid", undefined, "polyline")
-                ? activeButtonClass
-                : ""
-            }`}
-            onClick={() => onAddElement("line", "solid", undefined, "polyline")}
-          >
-            {labels.toolLineSolidElbow}
-          </button>
-          <button
-            type="button"
-            className={`${baseButtonClass} ${
-              isActive("line", "dashed", undefined, "polyline")
-                ? activeButtonClass
-                : ""
-            }`}
-            onClick={() => onAddElement("line", "dashed", undefined, "polyline")}
-          >
-            {labels.toolLineDashedElbow}
-          </button>
-          <button
-            type="button"
-            className={`${baseButtonClass} ${
-              isActive("arrow", "solid", "end", "polyline")
-                ? activeButtonClass
-                : ""
-            }`}
-            onClick={() =>
-              onAddElement("arrow", "solid", "end", "polyline")
-            }
-          >
-            {labels.toolArrowSolidSingleElbow}
-          </button>
-          <button
-            type="button"
-            className={`${baseButtonClass} ${
-              isActive("arrow", "dashed", "end", "polyline")
-                ? activeButtonClass
-                : ""
-            }`}
-            onClick={() =>
-              onAddElement("arrow", "dashed", "end", "polyline")
-            }
-          >
-            {labels.toolArrowDashedSingleElbow}
-          </button>
-          <button
-            type="button"
-            className={`${baseButtonClass} ${
-              isActive("arrow", "solid", "both", "polyline")
-                ? activeButtonClass
-                : ""
-            }`}
-            onClick={() =>
-              onAddElement("arrow", "solid", "both", "polyline")
-            }
-          >
-            {labels.toolArrowSolidDoubleElbow}
-          </button>
-          <button
-            type="button"
-            className={`${baseButtonClass} ${
-              isActive("arrow", "dashed", "both", "polyline")
-                ? activeButtonClass
-                : ""
-            }`}
-            onClick={() =>
-              onAddElement("arrow", "dashed", "both", "polyline")
-            }
-          >
-            {labels.toolArrowDashedDoubleElbow}
-          </button>
+            <button
+              type="button"
+              className={`${baseButtonClass} ${
+                isActive("arrow", "solid", "end") ? activeButtonClass : ""
+              }`}
+              onClick={() => onAddElement("arrow", "solid", "end")}
+            >
+              {labels.toolArrowSolidSingle}
+            </button>
+            <button
+              type="button"
+              className={`${baseButtonClass} ${
+                isActive("arrow", "dashed", "end") ? activeButtonClass : ""
+              }`}
+              onClick={() => onAddElement("arrow", "dashed", "end")}
+            >
+              {labels.toolArrowDashedSingle}
+            </button>
+            <button
+              type="button"
+              className={`${baseButtonClass} ${
+                isActive("arrow", "solid", "both") ? activeButtonClass : ""
+              }`}
+              onClick={() => onAddElement("arrow", "solid", "both")}
+            >
+              {labels.toolArrowSolidDouble}
+            </button>
+            <button
+              type="button"
+              className={`${baseButtonClass} ${
+                isActive("arrow", "dashed", "both") ? activeButtonClass : ""
+              }`}
+              onClick={() => onAddElement("arrow", "dashed", "both")}
+            >
+              {labels.toolArrowDashedDouble}
+            </button>
+            <button
+              type="button"
+              className={`${baseButtonClass} ${
+                isActive("line", "solid", undefined, "polyline")
+                  ? activeButtonClass
+                  : ""
+              }`}
+              onClick={() => onAddElement("line", "solid", undefined, "polyline")}
+            >
+              {labels.toolLineSolidElbow}
+            </button>
+            <button
+              type="button"
+              className={`${baseButtonClass} ${
+                isActive("line", "dashed", undefined, "polyline")
+                  ? activeButtonClass
+                  : ""
+              }`}
+              onClick={() => onAddElement("line", "dashed", undefined, "polyline")}
+            >
+              {labels.toolLineDashedElbow}
+            </button>
+            <button
+              type="button"
+              className={`${baseButtonClass} ${
+                isActive("arrow", "solid", "end", "polyline")
+                  ? activeButtonClass
+                  : ""
+              }`}
+              onClick={() =>
+                onAddElement("arrow", "solid", "end", "polyline")
+              }
+            >
+              {labels.toolArrowSolidSingleElbow}
+            </button>
+            <button
+              type="button"
+              className={`${baseButtonClass} ${
+                isActive("arrow", "dashed", "end", "polyline")
+                  ? activeButtonClass
+                  : ""
+              }`}
+              onClick={() =>
+                onAddElement("arrow", "dashed", "end", "polyline")
+              }
+            >
+              {labels.toolArrowDashedSingleElbow}
+            </button>
+            <button
+              type="button"
+              className={`${baseButtonClass} ${
+                isActive("arrow", "solid", "both", "polyline")
+                  ? activeButtonClass
+                  : ""
+              }`}
+              onClick={() =>
+                onAddElement("arrow", "solid", "both", "polyline")
+              }
+            >
+              {labels.toolArrowSolidDoubleElbow}
+            </button>
+            <button
+              type="button"
+              className={`${baseButtonClass} ${
+                isActive("arrow", "dashed", "both", "polyline")
+                  ? activeButtonClass
+                  : ""
+              }`}
+              onClick={() =>
+                onAddElement("arrow", "dashed", "both", "polyline")
+              }
+            >
+              {labels.toolArrowDashedDoubleElbow}
+            </button>
+          </div>
 
-          <details ref={exportDetailsRef} className="relative">
-            <summary className={summaryClass}>{labels.toolExportMenu}</summary>
-            <div className="absolute right-0 z-20 mt-2 w-40 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-              <button
-                type="button"
-                className={menuItemClass}
-                onClick={() => {
-                  onExportPng();
-                  closeMenu(exportDetailsRef);
-                }}
-              >
-                {labels.toolExport}
-              </button>
-              <button
-                type="button"
-                className={menuItemClass}
-                onClick={() => {
-                  onExportJson();
-                  closeMenu(exportDetailsRef);
-                }}
-              >
-                {labels.toolExportJson}
-              </button>
-            </div>
-          </details>
+          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 p-2">
+            <details ref={exportDetailsRef} className="relative">
+              <summary className={summaryClass}>{labels.toolExportMenu}</summary>
+              <div className="absolute right-0 z-20 mt-2 w-40 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                <button
+                  type="button"
+                  className={menuItemClass}
+                  onClick={() => {
+                    onExportPng();
+                    closeMenu(exportDetailsRef);
+                  }}
+                >
+                  {labels.toolExport}
+                </button>
+                <button
+                  type="button"
+                  className={menuItemClass}
+                  onClick={() => {
+                    onExportJson();
+                    closeMenu(exportDetailsRef);
+                  }}
+                >
+                  {labels.toolExportJson}
+                </button>
+              </div>
+            </details>
 
-          <details ref={canvasDetailsRef} className="relative">
-            <summary className={summaryClass}>{labels.toolCanvasMenu}</summary>
-            <div className="absolute right-0 z-20 mt-2 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-              <button
-                type="button"
-                className={`${menuItemClass} text-rose-600`}
-                onClick={() => {
-                  onClear();
-                  closeMenu(canvasDetailsRef);
-                }}
-              >
-                {labels.toolClear}
-              </button>
-              <button
-                type="button"
-                className={`${menuItemClass} disabled:cursor-not-allowed disabled:opacity-50`}
-                onClick={() => {
-                  onDuplicate();
-                  closeMenu(canvasDetailsRef);
-                }}
-                disabled={!selected}
-              >
-                {labels.toolDuplicate}
-              </button>
-              <button
-                type="button"
-                className={`${menuItemClass} text-rose-600 disabled:cursor-not-allowed disabled:opacity-50`}
-                onClick={() => {
-                  onDelete();
-                  closeMenu(canvasDetailsRef);
-                }}
-                disabled={!selected}
-              >
-                {labels.toolDelete}
-              </button>
-              <button
-                type="button"
-                className={menuItemClass}
-                onClick={() => {
-                  onLoadSample();
-                  closeMenu(canvasDetailsRef);
-                }}
-              >
-                {labels.loadSample}
-              </button>
-            </div>
-          </details>
+            <details ref={canvasDetailsRef} className="relative">
+              <summary className={summaryClass}>{labels.toolCanvasMenu}</summary>
+              <div className="absolute right-0 z-20 mt-2 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                <button
+                  type="button"
+                  className={`${menuItemClass} text-rose-600`}
+                  onClick={() => {
+                    onClear();
+                    closeMenu(canvasDetailsRef);
+                  }}
+                >
+                  {labels.toolClear}
+                </button>
+                <button
+                  type="button"
+                  className={`${menuItemClass} disabled:cursor-not-allowed disabled:opacity-50`}
+                  onClick={() => {
+                    onDuplicate();
+                    closeMenu(canvasDetailsRef);
+                  }}
+                  disabled={!selected}
+                >
+                  {labels.toolDuplicate}
+                </button>
+                <button
+                  type="button"
+                  className={`${menuItemClass} text-rose-600 disabled:cursor-not-allowed disabled:opacity-50`}
+                  onClick={() => {
+                    onDelete();
+                    closeMenu(canvasDetailsRef);
+                  }}
+                  disabled={!selected}
+                >
+                  {labels.toolDelete}
+                </button>
+                <button
+                  type="button"
+                  className={menuItemClass}
+                  onClick={() => {
+                    onLoadSample();
+                    closeMenu(canvasDetailsRef);
+                  }}
+                >
+                  {labels.loadSample}
+                </button>
+              </div>
+            </details>
+          </div>
         </div>
       </div>
     );
@@ -525,54 +529,82 @@ export default function DiagramTools({
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <details className="relative">
-            <summary className={summaryClass}>{labels.toolExportMenu}</summary>
-            <div className="absolute right-0 z-20 mt-2 w-40 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-              <button type="button" className={menuItemClass} onClick={onExportPng}>
-                {labels.toolExport}
-              </button>
-              <button type="button" className={menuItemClass} onClick={onExportJson}>
-                {labels.toolExportJson}
-              </button>
-            </div>
-          </details>
+        <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-2">
+          <div className="grid grid-cols-2 gap-2">
+            <details ref={exportDetailsRef} className="relative">
+              <summary className={summaryClass}>{labels.toolExportMenu}</summary>
+              <div className="absolute right-0 z-20 mt-2 w-40 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                <button
+                  type="button"
+                  className={menuItemClass}
+                  onClick={() => {
+                    onExportPng();
+                    closeMenu(exportDetailsRef);
+                  }}
+                >
+                  {labels.toolExport}
+                </button>
+                <button
+                  type="button"
+                  className={menuItemClass}
+                  onClick={() => {
+                    onExportJson();
+                    closeMenu(exportDetailsRef);
+                  }}
+                >
+                  {labels.toolExportJson}
+                </button>
+              </div>
+            </details>
 
-          <details className="relative">
-            <summary className={summaryClass}>{labels.toolCanvasMenu}</summary>
-            <div className="absolute right-0 z-20 mt-2 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-              <button
-                type="button"
-                className={`${menuItemClass} text-rose-600`}
-                onClick={onClear}
-              >
-                {labels.toolClear}
-              </button>
-              <button
-                type="button"
-                className={`${menuItemClass} disabled:cursor-not-allowed disabled:opacity-50`}
-                onClick={onDuplicate}
-                disabled={!selected}
-              >
-                {labels.toolDuplicate}
-              </button>
-              <button
-                type="button"
-                className={`${menuItemClass} text-rose-600 disabled:cursor-not-allowed disabled:opacity-50`}
-                onClick={onDelete}
-                disabled={!selected}
-              >
-                {labels.toolDelete}
-              </button>
-              <button
-                type="button"
-                className={menuItemClass}
-                onClick={onLoadSample}
-              >
-                {labels.loadSample}
-              </button>
-            </div>
-          </details>
+            <details ref={canvasDetailsRef} className="relative">
+              <summary className={summaryClass}>{labels.toolCanvasMenu}</summary>
+              <div className="absolute right-0 z-20 mt-2 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                <button
+                  type="button"
+                  className={`${menuItemClass} text-rose-600`}
+                  onClick={() => {
+                    onClear();
+                    closeMenu(canvasDetailsRef);
+                  }}
+                >
+                  {labels.toolClear}
+                </button>
+                <button
+                  type="button"
+                  className={`${menuItemClass} disabled:cursor-not-allowed disabled:opacity-50`}
+                  onClick={() => {
+                    onDuplicate();
+                    closeMenu(canvasDetailsRef);
+                  }}
+                  disabled={!selected}
+                >
+                  {labels.toolDuplicate}
+                </button>
+                <button
+                  type="button"
+                  className={`${menuItemClass} text-rose-600 disabled:cursor-not-allowed disabled:opacity-50`}
+                  onClick={() => {
+                    onDelete();
+                    closeMenu(canvasDetailsRef);
+                  }}
+                  disabled={!selected}
+                >
+                  {labels.toolDelete}
+                </button>
+                <button
+                  type="button"
+                  className={menuItemClass}
+                  onClick={() => {
+                    onLoadSample();
+                    closeMenu(canvasDetailsRef);
+                  }}
+                >
+                  {labels.loadSample}
+                </button>
+              </div>
+            </details>
+          </div>
         </div>
 
         <p className="text-xs text-slate-400">{labels.imageExportHint}</p>
