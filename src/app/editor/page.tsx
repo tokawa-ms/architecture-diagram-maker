@@ -1495,10 +1495,7 @@ export default function EditorPage() {
       />
       <main className="flex-1 bg-slate-50">
         <section className="mx-[10px] flex flex-1 flex-col gap-6 px-0 py-10">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <h1 className="text-2xl font-semibold text-slate-900">
-              {messages.editorTitle}
-            </h1>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-end">
             <div className="flex flex-1 flex-col gap-3 lg:flex-row lg:items-center lg:justify-end">
               <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs text-slate-600">
                 <label className="text-[11px] font-semibold text-slate-500">
