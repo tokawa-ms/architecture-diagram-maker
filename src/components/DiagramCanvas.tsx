@@ -8,8 +8,26 @@ interface DiagramCanvasProps {
   selectedIds: string[];
   emptyMessage: string;
   showGrid: boolean;
+  activeTool?: {
+    type: DiagramElement["type"];
+    style?: "solid" | "dashed";
+    arrowEnds?: "end" | "both";
+  } | null;
+  previewLabels?: {
+    box: string;
+    text: string;
+  };
   onSelect: (ids: string[]) => void;
   onUpdate: (id: string, updates: Partial<DiagramElement>) => void;
+  onCreateElement?: (args: {
+    type: DiagramElement["type"];
+    style?: "solid" | "dashed";
+    arrowEnds?: "end" | "both";
+    startX: number;
+    startY: number;
+    endX: number;
+    endY: number;
+  }) => void;
   onInteractionStart?: () => void;
   onInteractionEnd?: () => void;
   onMoveSelection?: (args: {
@@ -613,15 +631,52 @@ export default function DiagramCanvas({
   selectedIds,
   emptyMessage,
   showGrid,
+  activeTool,
+  previewLabels,
   onSelect,
   onUpdate,
+  onCreateElement,
   onInteractionStart,
   onInteractionEnd,
   onMoveSelection,
   onOpenContextMenu,
 }: DiagramCanvasProps) {
   const gridSize = 10;
+  const snapValue = (value: number) => Math.round(value / gridSize) * gridSize;
+  const snapLinePoints = (args: {
+    startX: number;
+    startY: number;
+    endX: number;
+    endY: number;
+  }) => ({
+    startX: snapValue(args.startX),
+    startY: snapValue(args.startY),
+    endX: snapValue(args.endX),
+    endY: snapValue(args.endY),
+  });
+  const snapRectPoints = (args: {
+    startX: number;
+    startY: number;
+    endX: number;
+    endY: number;
+  }) => {
+    const startX = snapValue(args.startX);
+    const startY = snapValue(args.startY);
+    const endX = snapValue(args.endX);
+    const endY = snapValue(args.endY);
+    const x = Math.min(startX, endX);
+    const y = Math.min(startY, endY);
+    const width = Math.max(gridSize * 2, Math.abs(endX - startX));
+    const height = Math.max(gridSize * 2, Math.abs(endY - startY));
+    return { x, y, width, height, startX, startY, endX, endY };
+  };
   const [selectionBox, setSelectionBox] = useState<null | {
+    startX: number;
+    startY: number;
+    currentX: number;
+    currentY: number;
+  }>(null);
+  const [drawState, setDrawState] = useState<null | {
     startX: number;
     startY: number;
     currentX: number;
@@ -646,6 +701,24 @@ export default function DiagramCanvas({
   };
 
   const selectionBoxStyle = getSelectionBoxStyle();
+  const previewRect =
+    drawState && activeTool && activeTool.type !== "arrow" && activeTool.type !== "line"
+      ? snapRectPoints({
+          startX: drawState.startX,
+          startY: drawState.startY,
+          endX: drawState.currentX,
+          endY: drawState.currentY,
+        })
+      : null;
+  const previewLine =
+    drawState && activeTool && (activeTool.type === "arrow" || activeTool.type === "line")
+      ? snapLinePoints({
+          startX: drawState.startX,
+          startY: drawState.startY,
+          endX: drawState.currentX,
+          endY: drawState.currentY,
+        })
+      : null;
 
   const getGroupSelectionIds = (element: DiagramElement) => {
     if (!element.groupId) return [element.id];
@@ -671,11 +744,26 @@ export default function DiagramCanvas({
         const rect = event.currentTarget.getBoundingClientRect();
         const startX = event.clientX - rect.left;
         const startY = event.clientY - rect.top;
+        if (activeTool) {
+          event.currentTarget.setPointerCapture(event.pointerId);
+          setDrawState({ startX, startY, currentX: startX, currentY: startY });
+          onSelect([]);
+          return;
+        }
         event.currentTarget.setPointerCapture(event.pointerId);
         setSelectionBox({ startX, startY, currentX: startX, currentY: startY });
         onSelect([]);
       }}
       onPointerMove={(event) => {
+        if (drawState) {
+          const rect = event.currentTarget.getBoundingClientRect();
+          const currentX = event.clientX - rect.left;
+          const currentY = event.clientY - rect.top;
+          setDrawState((prev) =>
+            prev ? { ...prev, currentX, currentY } : prev,
+          );
+          return;
+        }
         if (!selectionBox) return;
         const rect = event.currentTarget.getBoundingClientRect();
         const currentX = event.clientX - rect.left;
@@ -685,6 +773,39 @@ export default function DiagramCanvas({
         );
       }}
       onPointerUp={(event) => {
+        if (drawState && activeTool) {
+          const rect = event.currentTarget.getBoundingClientRect();
+          const endX = event.clientX - rect.left;
+          const endY = event.clientY - rect.top;
+          const dx = endX - drawState.startX;
+          const dy = endY - drawState.startY;
+          const minDrag = gridSize;
+          if (Math.abs(dx) < minDrag && Math.abs(dy) < minDrag) {
+            setDrawState(null);
+            try {
+              event.currentTarget.releasePointerCapture(event.pointerId);
+            } catch {
+              // no-op
+            }
+            return;
+          }
+          onCreateElement?.({
+            type: activeTool.type,
+            style: activeTool.style,
+            arrowEnds: activeTool.arrowEnds,
+            startX: drawState.startX,
+            startY: drawState.startY,
+            endX,
+            endY,
+          });
+          setDrawState(null);
+          try {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+          } catch {
+            // no-op
+          }
+          return;
+        }
         if (!selectionBox) return;
         const rect = event.currentTarget.getBoundingClientRect();
         const currentX = event.clientX - rect.left;
@@ -714,10 +835,13 @@ export default function DiagramCanvas({
           // no-op
         }
       }}
-      onPointerCancel={() => setSelectionBox(null)}
+      onPointerCancel={() => {
+        setSelectionBox(null);
+        setDrawState(null);
+      }}
     >
       {elements.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center text-sm text-slate-400">
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-slate-400">
           {emptyMessage}
         </div>
       )}
@@ -726,6 +850,88 @@ export default function DiagramCanvas({
           className="pointer-events-none absolute border border-sky-400 bg-sky-100/40"
           style={selectionBoxStyle}
         />
+      )}
+      {previewRect && activeTool?.type === "box" && (
+        <div
+          className="pointer-events-none absolute"
+          style={{
+            left: previewRect.x,
+            top: previewRect.y,
+            width: previewRect.width,
+            height: previewRect.height,
+            backgroundColor: "#F8FAFC",
+            border: "2px solid #CBD5F5",
+            borderRadius: 12,
+          }}
+        >
+          {previewLabels?.box && (
+            <div className="p-2 text-xs font-semibold text-slate-700">
+              {previewLabels.box}
+            </div>
+          )}
+        </div>
+      )}
+      {previewRect && activeTool?.type === "text" && (
+        <div
+          className="pointer-events-none absolute flex items-center justify-center"
+          style={{
+            left: previewRect.x,
+            top: previewRect.y,
+            width: previewRect.width,
+            height: previewRect.height,
+            color: "#0F172A",
+            fontSize: 16,
+            lineHeight: 1.3,
+          }}
+        >
+          {previewLabels?.text ?? ""}
+        </div>
+      )}
+      {previewLine && (
+        <svg
+          className="pointer-events-none absolute left-0 top-0 overflow-visible"
+          style={{ left: 0, top: 0, width: "100%", height: "100%" }}
+        >
+          {(activeTool?.type === "arrow") && (
+            <defs>
+              <marker
+                id="preview-arrowhead"
+                markerWidth="10"
+                markerHeight="7"
+                refX="8"
+                refY="3.5"
+                orient="auto-start-reverse"
+                markerUnits="strokeWidth"
+              >
+                <polygon
+                  points="0 0, 10 3.5, 0 7"
+                  fill="#0F172A"
+                />
+              </marker>
+            </defs>
+          )}
+          <line
+            x1={previewLine.startX}
+            y1={previewLine.startY}
+            x2={previewLine.endX}
+            y2={previewLine.endY}
+            stroke={activeTool?.type === "arrow" ? "#0F172A" : "#64748B"}
+            strokeWidth={2}
+            strokeDasharray={activeTool?.style === "dashed" ? "6 4" : "0"}
+            markerEnd={
+              activeTool?.type === "arrow" &&
+              (activeTool.arrowEnds === "end" || activeTool.arrowEnds === "both")
+                ? "url(#preview-arrowhead)"
+                : undefined
+            }
+            markerStart={
+              activeTool?.type === "arrow" && activeTool.arrowEnds === "both"
+                ? "url(#preview-arrowhead)"
+                : undefined
+            }
+            strokeLinecap="round"
+          />
+        </svg>
       )}
       {elements.map((element) => {
         const selectionIdsForDrag =
