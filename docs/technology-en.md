@@ -5,7 +5,7 @@
 ## Frontend
 
 - Next.js App Router + React 19 + TypeScript
-- Pages: `/`, `/editor`, `/items`, `/settings`, `/about`
+- Pages: `/`, `/editor`, `/items`, `/history`, `/settings`, `/about`
 - Localization: strings are centralized in `src/lib/i18n.ts` and switched via `?lang=`
 
 ## UI / Styling
@@ -20,7 +20,7 @@
 
 ## Persistence
 
-- Browser local storage by default
+- Browser local storage by default (saved diagrams, history, drafts)
 - Azure Cosmos DB (SQL API) uses `@azure/cosmos` and `DefaultAzureCredential` when configured
 
 ## Export

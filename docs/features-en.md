@@ -18,13 +18,15 @@
 - JSON export / import
 - PNG export
 - Cloud persistence via `/api/diagrams` when Cosmos DB is configured
+- Store history snapshots locally and restore from `/history`
 
 ## Pages and Navigation
 
 - `/`: landing page
 - `/editor`: diagram editor
-- `/items`: sample list (currently static)
-- `/settings`: history retention settings
+- `/items`: icon catalog and search (`/api/icons`)
+- `/history`: local history list and restore
+- `/settings`: history retention and PNG export scale settings
 - `/about`: app overview
 
 ## Shared Features
