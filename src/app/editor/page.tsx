@@ -17,6 +17,7 @@ import type {
   DiagramElement,
   DiagramElementType,
   DiagramDocument,
+  DiagramLinePoint,
 } from "@/lib/types";
 import { exportDiagramJson, saveDiagram } from "@/lib/storage";
 import {
@@ -36,6 +37,152 @@ const createEmptyDocument = (name: string): DiagramDocument => {
   };
 };
 
+const GRID_SIZE = 10;
+
+const snapValue = (value: number, gridSize = GRID_SIZE) =>
+  Math.round(value / gridSize) * gridSize;
+
+const snapSize = (value: number) => {
+  const snapped = Math.max(GRID_SIZE * 2, snapValue(value));
+  const units = Math.round(snapped / GRID_SIZE);
+  return units % 2 === 0 ? snapped : snapped + GRID_SIZE;
+};
+
+const snapRectByCenter = (args: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}) => {
+  const snappedWidth = snapSize(args.width);
+  const snappedHeight = snapSize(args.height);
+  const centerX = args.x + args.width / 2;
+  const centerY = args.y + args.height / 2;
+  const snappedCenterX = snapValue(centerX);
+  const snappedCenterY = snapValue(centerY);
+  return {
+    x: snappedCenterX - snappedWidth / 2,
+    y: snappedCenterY - snappedHeight / 2,
+    width: snappedWidth,
+    height: snappedHeight,
+  };
+};
+
+const snapLinePoints = (args: {
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+}) => {
+  const startX = snapValue(args.startX);
+  const startY = snapValue(args.startY);
+  const endX = snapValue(args.endX);
+  const endY = snapValue(args.endY);
+  return {
+    startX,
+    startY,
+    endX,
+    endY,
+    x: startX,
+    y: startY,
+    width: endX - startX,
+    height: endY - startY,
+  };
+};
+
+const snapPoint = (point: DiagramLinePoint) => ({
+  x: snapValue(point.x),
+  y: snapValue(point.y),
+});
+
+const normalizePolyline = (points: DiagramLinePoint[]) => {
+  const snapped = points.map(snapPoint);
+  const xs = snapped.map((point) => point.x);
+  const ys = snapped.map((point) => point.y);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  const start = snapped[0];
+  const end = snapped[snapped.length - 1];
+  return {
+    points: snapped,
+    startX: start.x,
+    startY: start.y,
+    endX: end.x,
+    endY: end.y,
+    x: minX,
+    y: minY,
+    width: maxX - minX,
+    height: maxY - minY,
+  };
+};
+
+const enforceMinDistance = (start: number, end: number, min: number) => {
+  if (Math.abs(end - start) >= min) return { start, end };
+  return end >= start
+    ? { start, end: start + min }
+    : { start, end: start - min };
+};
+
+const snapDragPoints = (args: {
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+}) => {
+  const minSize = GRID_SIZE * 2;
+  const snappedStartX = snapValue(args.startX);
+  const snappedStartY = snapValue(args.startY);
+  const snappedEndX = snapValue(args.endX);
+  const snappedEndY = snapValue(args.endY);
+
+  const { start: startX, end: endX } = enforceMinDistance(
+    snappedStartX,
+    snappedEndX,
+    minSize,
+  );
+  const { start: startY, end: endY } = enforceMinDistance(
+    snappedStartY,
+    snappedEndY,
+    minSize,
+  );
+
+  return { startX, startY, endX, endY };
+};
+
+const snapElementToGrid = (element: DiagramElement): DiagramElement => {
+  if (element.type === "arrow" || element.type === "line") {
+    if (Array.isArray(element.points) && element.points.length >= 2) {
+      const normalized = normalizePolyline(element.points);
+      return {
+        ...element,
+        ...normalized,
+        points: normalized.points,
+      } as DiagramElement;
+    }
+    return {
+      ...element,
+      ...snapLinePoints({
+        startX: element.startX,
+        startY: element.startY,
+        endX: element.endX,
+        endY: element.endY,
+      }),
+    } as DiagramElement;
+  }
+
+  return {
+    ...element,
+    ...snapRectByCenter({
+      x: element.x,
+      y: element.y,
+      width: element.width,
+      height: element.height,
+    }),
+  } as DiagramElement;
+};
+
 const createElement = (
   type: DiagramElementType,
   labels: {
@@ -45,6 +192,7 @@ const createElement = (
   },
   style?: ArrowStyle,
   arrowEnds?: ArrowEnds,
+  lineMode?: "straight" | "polyline",
 ): DiagramElement => {
   const base = {
     id: `${type}-${Date.now()}`,
@@ -59,7 +207,7 @@ const createElement = (
 
   switch (type) {
     case "box":
-      return {
+      return snapElementToGrid({
         ...base,
         type: "box",
         fill: "#F8FAFC",
@@ -67,17 +215,32 @@ const createElement = (
         borderWidth: 2,
         radius: 12,
         label: labels.box,
-      };
+      } as DiagramElement);
     case "text":
-      return {
+      return snapElementToGrid({
         ...base,
         type: "text",
         text: labels.text,
         fontSize: 16,
         color: "#0F172A",
-      };
+      } as DiagramElement);
     case "arrow":
-      return {
+      if (lineMode === "polyline") {
+        const start = { x: base.x, y: base.y };
+        const end = { x: base.x + 160, y: base.y };
+        const normalized = normalizePolyline([start, end]);
+        return {
+          ...base,
+          type: "arrow",
+          ...normalized,
+          points: normalized.points,
+          stroke: "#0F172A",
+          strokeWidth: 2,
+          style: style ?? "solid",
+          arrowEnds: arrowEnds ?? "end",
+        } as DiagramElement;
+      }
+      return snapElementToGrid({
         ...base,
         type: "arrow",
         width: 160,
@@ -90,9 +253,23 @@ const createElement = (
         strokeWidth: 2,
         style: style ?? "solid",
         arrowEnds: arrowEnds ?? "end",
-      };
+      } as DiagramElement);
     case "line":
-      return {
+      if (lineMode === "polyline") {
+        const start = { x: base.x, y: base.y };
+        const end = { x: base.x + 200, y: base.y };
+        const normalized = normalizePolyline([start, end]);
+        return {
+          ...base,
+          type: "line",
+          ...normalized,
+          points: normalized.points,
+          stroke: "#64748B",
+          strokeWidth: 2,
+          style: style ?? "dashed",
+        } as DiagramElement;
+      }
+      return snapElementToGrid({
         ...base,
         type: "line",
         width: 200,
@@ -104,17 +281,140 @@ const createElement = (
         stroke: "#64748B",
         strokeWidth: 2,
         style: style ?? "dashed",
-      };
+      } as DiagramElement);
     default:
-      return {
+      return snapElementToGrid({
         ...base,
         type: "icon",
         width: 80,
         height: 80,
         src: "/icons-sample/azure.svg",
         label: labels.icon,
-      };
+      } as DiagramElement);
   }
+};
+
+const createElementFromDrag = (args: {
+  type: DiagramElementType;
+  labels: {
+    box: string;
+    text: string;
+    icon: string;
+  };
+  style?: ArrowStyle;
+  arrowEnds?: ArrowEnds;
+  lineMode?: "straight" | "polyline";
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+  points?: DiagramLinePoint[];
+}): DiagramElement => {
+  const base = {
+    id: `${args.type}-${Date.now()}`,
+    rotation: 0,
+    zIndex: 1,
+    opacity: 1,
+  };
+
+  if (args.type === "arrow" || args.type === "line") {
+    if (Array.isArray(args.points) && args.points.length >= 2) {
+      const normalized = normalizePolyline(args.points);
+      if (args.type === "arrow") {
+        return {
+          ...base,
+          type: "arrow",
+          ...normalized,
+          points: normalized.points,
+          stroke: "#0F172A",
+          strokeWidth: 2,
+          style: args.style ?? "solid",
+          arrowEnds: args.arrowEnds ?? "end",
+        } as DiagramElement;
+      }
+      return {
+        ...base,
+        type: "line",
+        ...normalized,
+        points: normalized.points,
+        stroke: "#64748B",
+        strokeWidth: 2,
+        style: args.style ?? "dashed",
+      } as DiagramElement;
+    }
+    let snapped = snapLinePoints({
+      startX: args.startX,
+      startY: args.startY,
+      endX: args.endX,
+      endY: args.endY,
+    });
+    if (snapped.startX === snapped.endX && snapped.startY === snapped.endY) {
+      const endX = snapped.startX + GRID_SIZE * 6;
+      snapped = {
+        ...snapped,
+        endX,
+        width: endX - snapped.startX,
+      };
+    }
+    if (args.type === "arrow") {
+      return {
+        ...base,
+        type: "arrow",
+        ...snapped,
+        stroke: "#0F172A",
+        strokeWidth: 2,
+        style: args.style ?? "solid",
+        arrowEnds: args.arrowEnds ?? "end",
+      } as DiagramElement;
+    }
+    return {
+      ...base,
+      type: "line",
+      ...snapped,
+      stroke: "#64748B",
+      strokeWidth: 2,
+      style: args.style ?? "dashed",
+    } as DiagramElement;
+  }
+
+  const snapped = snapDragPoints({
+    startX: args.startX,
+    startY: args.startY,
+    endX: args.endX,
+    endY: args.endY,
+  });
+  const x = Math.min(snapped.startX, snapped.endX);
+  const y = Math.min(snapped.startY, snapped.endY);
+  const width = Math.abs(snapped.endX - snapped.startX);
+  const height = Math.abs(snapped.endY - snapped.startY);
+
+  if (args.type === "box") {
+    return {
+      ...base,
+      type: "box",
+      x,
+      y,
+      width,
+      height,
+      fill: "#F8FAFC",
+      border: "#CBD5F5",
+      borderWidth: 2,
+      radius: 12,
+      label: args.labels.box,
+    } as DiagramElement;
+  }
+
+  return {
+    ...base,
+    type: "text",
+    x,
+    y,
+    width,
+    height,
+    text: args.labels.text,
+    fontSize: 16,
+    color: "#0F172A",
+  } as DiagramElement;
 };
 
 const downloadJson = (content: string, filename: string) => {
@@ -140,6 +440,16 @@ export default function EditorPage() {
   );
   const [idPrefix, setIdPrefix] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [showGrid, setShowGrid] = useState(true);
+  const [activeTool, setActiveTool] = useState<null | {
+    type: DiagramElementType;
+    style?: ArrowStyle;
+    arrowEnds?: ArrowEnds;
+    lineMode?: "straight" | "polyline";
+  }>(null);
+  const [interactionMode, setInteractionMode] = useState<"edit" | "draw">(
+    "edit",
+  );
   const [storageModalOpen, setStorageModalOpen] = useState(false);
   const [historyLimit, setHistoryLimit] = useState(() => getHistoryLimit());
   const [historyPast, setHistoryPast] = useState<
@@ -200,6 +510,10 @@ export default function EditorPage() {
       propertyFontSize: messages.propertyFontSize,
       propertyRadius: messages.propertyRadius,
       propertyArrowStyle: messages.propertyArrowStyle,
+      propertyStartX: messages.propertyStartX,
+      propertyStartY: messages.propertyStartY,
+      propertyEndX: messages.propertyEndX,
+      propertyEndY: messages.propertyEndY,
     }),
     [messages],
   );
@@ -449,12 +763,164 @@ export default function EditorPage() {
     type: DiagramElementType,
     style?: ArrowStyle,
     ends?: ArrowEnds,
+    lineMode?: "straight" | "polyline",
   ) => {
-    console.log("Adding element", type);
+    const nextTool = { type, style, arrowEnds: ends, lineMode };
+    setActiveTool((prev) => {
+      if (
+        prev &&
+        prev.type === nextTool.type &&
+        prev.style === nextTool.style &&
+        prev.arrowEnds === nextTool.arrowEnds &&
+        (prev.lineMode ?? "straight") === (nextTool.lineMode ?? "straight")
+      ) {
+        setInteractionMode("edit");
+        return null;
+      }
+      setInteractionMode("draw");
+      return {
+        ...nextTool,
+        lineMode: nextTool.lineMode ?? "straight",
+      };
+    });
+  };
+
+  const handleCreateElementFromDrag = (args: {
+    type: DiagramElementType;
+    style?: ArrowStyle;
+    arrowEnds?: ArrowEnds;
+    startX: number;
+    startY: number;
+    endX: number;
+    endY: number;
+    points?: DiagramLinePoint[];
+    lineMode?: "straight" | "polyline";
+  }) => {
+    console.log("Adding element from drag", args.type);
     recordHistory();
-    const element = createElement(type, defaultLabels, style, ends);
-    updateElements((elements) => [...elements, element]);
-    applySelection([element.id]);
+    const maxZIndex = Math.max(
+      0,
+      ...diagramRef.current.elements.map((element) => element.zIndex ?? 0),
+    );
+    const element = createElementFromDrag({
+      type: args.type,
+      labels: defaultLabels,
+      style: args.style,
+      arrowEnds: args.arrowEnds,
+      lineMode: args.lineMode,
+      startX: args.startX,
+      startY: args.startY,
+      endX: args.endX,
+      endY: args.endY,
+      points: args.points,
+    });
+    const nextElement: DiagramElement = {
+      ...element,
+      zIndex: maxZIndex + 1,
+    };
+    updateElements((elements) => [...elements, nextElement]);
+    applySelection([nextElement.id]);
+  };
+
+  const applyLineUpdates = (
+    element: Extract<DiagramElement, { type: "arrow" | "line" }>,
+    updates: Partial<DiagramElement>,
+  ) => {
+    const existingPoints = Array.isArray(element.points) ? element.points : null;
+    const incomingPoints =
+      "points" in updates && Array.isArray(updates.points)
+        ? (updates.points as DiagramLinePoint[])
+        : null;
+    const shouldUsePoints =
+      (incomingPoints?.length ?? 0) >= 2 || (existingPoints?.length ?? 0) >= 2;
+
+    if (shouldUsePoints) {
+      let points = incomingPoints ?? existingPoints ?? [
+        { x: element.startX, y: element.startY },
+        { x: element.endX, y: element.endY },
+      ];
+
+      if (!incomingPoints) {
+        const nextPoints = [...points];
+        if (
+          typeof updates.startX === "number" || typeof updates.startY === "number"
+        ) {
+          nextPoints[0] = {
+            x:
+              typeof updates.startX === "number"
+                ? updates.startX
+                : nextPoints[0].x,
+            y:
+              typeof updates.startY === "number"
+                ? updates.startY
+                : nextPoints[0].y,
+          };
+        }
+        if (
+          typeof updates.endX === "number" || typeof updates.endY === "number"
+        ) {
+          const lastIndex = nextPoints.length - 1;
+          nextPoints[lastIndex] = {
+            x:
+              typeof updates.endX === "number"
+                ? updates.endX
+                : nextPoints[lastIndex].x,
+            y:
+              typeof updates.endY === "number"
+                ? updates.endY
+                : nextPoints[lastIndex].y,
+          };
+        }
+        points = nextPoints;
+      }
+
+      const normalized = normalizePolyline(points);
+      return {
+        ...element,
+        ...updates,
+        ...normalized,
+        points: normalized.points,
+      } as DiagramElement;
+    }
+
+    const nextStartX =
+      "startX" in updates && typeof updates.startX === "number"
+        ? updates.startX
+        : "x" in updates && typeof updates.x === "number"
+          ? updates.x
+          : element.startX;
+    const nextStartY =
+      "startY" in updates && typeof updates.startY === "number"
+        ? updates.startY
+        : "y" in updates && typeof updates.y === "number"
+          ? updates.y
+          : element.startY;
+    const nextEndX =
+      "endX" in updates && typeof updates.endX === "number"
+        ? updates.endX
+        : "width" in updates && typeof updates.width === "number"
+          ? nextStartX + updates.width
+          : element.endX;
+    const nextEndY =
+      "endY" in updates && typeof updates.endY === "number"
+        ? updates.endY
+        : "height" in updates && typeof updates.height === "number"
+          ? nextStartY + updates.height
+          : element.endY;
+
+    const snapped = snapLinePoints({
+      startX: nextStartX,
+      startY: nextStartY,
+      endX: nextEndX,
+      endY: nextEndY,
+    });
+
+    return {
+      ...(element as DiagramElement),
+      ...updates,
+      ...snapped,
+      points: undefined,
+    } as DiagramElement;
   };
 
   const handlePaletteSelect = (item: {
@@ -476,55 +942,57 @@ export default function EditorPage() {
     applySelection([elementWithIcon.id]);
   };
 
-  const handleUpdateElement = (id: string, updates: Partial<DiagramElement>) => {
-    recordHistoryIfNeeded();
+  const handleUpdateElement = (
+    id: string,
+    updates: Partial<DiagramElement>,
+    options?: { skipHistory?: boolean },
+  ) => {
+    if (!options?.skipHistory) {
+      recordHistoryIfNeeded();
+    }
     updateElements((elements) =>
       elements.map((element) => {
         if (element.id !== id) {
           return element;
         }
         if (element.type === "arrow" || element.type === "line") {
-          const nextStartX =
-            "startX" in updates && typeof updates.startX === "number"
-              ? updates.startX
-              : "x" in updates && typeof updates.x === "number"
-                ? updates.x
-              : element.startX;
-          const nextStartY =
-            "startY" in updates && typeof updates.startY === "number"
-              ? updates.startY
-              : "y" in updates && typeof updates.y === "number"
-                ? updates.y
-              : element.startY;
-          const nextEndX =
-            "endX" in updates && typeof updates.endX === "number"
-              ? updates.endX
-              : "width" in updates && typeof updates.width === "number"
-                ? nextStartX + updates.width
-              : element.endX;
-          const nextEndY =
-            "endY" in updates && typeof updates.endY === "number"
-              ? updates.endY
-              : "height" in updates && typeof updates.height === "number"
-                ? nextStartY + updates.height
-              : element.endY;
-
-          const merged = { ...element, ...updates } as DiagramElement;
-          return {
-            ...merged,
-            startX: nextStartX,
-            startY: nextStartY,
-            endX: nextEndX,
-            endY: nextEndY,
-            x: nextStartX,
-            y: nextStartY,
-            width: nextEndX - nextStartX,
-            height: nextEndY - nextStartY,
-          } as DiagramElement;
+          return applyLineUpdates(element, updates);
         }
-        return { ...element, ...updates } as DiagramElement;
+
+        const nextX =
+          "x" in updates && typeof updates.x === "number" ? updates.x : element.x;
+        const nextY =
+          "y" in updates && typeof updates.y === "number" ? updates.y : element.y;
+        const nextWidth =
+          "width" in updates && typeof updates.width === "number"
+            ? updates.width
+            : element.width;
+        const nextHeight =
+          "height" in updates && typeof updates.height === "number"
+            ? updates.height
+            : element.height;
+
+        const snapped = snapRectByCenter({
+          x: nextX,
+          y: nextY,
+          width: nextWidth,
+          height: nextHeight,
+        });
+
+        return {
+          ...(element as DiagramElement),
+          ...updates,
+          ...snapped,
+        } as DiagramElement;
       }),
     );
+  };
+
+  const handleUpdateElementFromCanvas = (
+    id: string,
+    updates: Partial<DiagramElement>,
+  ) => {
+    handleUpdateElement(id, updates, { skipHistory: true });
   };
 
   const handleClear = () => {
@@ -586,14 +1054,52 @@ export default function EditorPage() {
     if (selectedElements.length === 0) return;
     recordHistory();
     const timestamp = Date.now();
-    const duplicates = selectedElements.map((element, index) => ({
-      ...element,
-      id: `${element.id}-copy-${timestamp}-${index}`,
-      x: element.x + 20,
-      y: element.y + 20,
-      zIndex: element.zIndex + 1,
-      groupId: undefined,
-    }));
+    const duplicates = selectedElements.map((element, index) => {
+      if (element.type === "arrow" || element.type === "line") {
+          if (Array.isArray(element.points) && element.points.length >= 2) {
+            const nextPoints = element.points.map((point) => ({
+              x: point.x + 20,
+              y: point.y + 20,
+            }));
+            const normalized = normalizePolyline(nextPoints);
+            return {
+              ...element,
+              ...normalized,
+              points: normalized.points,
+              id: `${element.id}-copy-${timestamp}-${index}`,
+              zIndex: element.zIndex + 1,
+              groupId: undefined,
+            } as DiagramElement;
+          }
+          const snapped = snapLinePoints({
+            startX: element.startX + 20,
+            startY: element.startY + 20,
+            endX: element.endX + 20,
+            endY: element.endY + 20,
+          });
+          return {
+            ...element,
+            ...snapped,
+            id: `${element.id}-copy-${timestamp}-${index}`,
+            zIndex: element.zIndex + 1,
+            groupId: undefined,
+          } as DiagramElement;
+      }
+
+      const snapped = snapRectByCenter({
+        x: element.x + 20,
+        y: element.y + 20,
+        width: element.width,
+        height: element.height,
+      });
+      return {
+        ...element,
+        ...snapped,
+        id: `${element.id}-copy-${timestamp}-${index}`,
+        zIndex: element.zIndex + 1,
+        groupId: undefined,
+      } as DiagramElement;
+    });
     updateElements((elements) => [...elements, ...duplicates]);
     setSelectedIds(duplicates.map((element) => element.id));
   };
@@ -619,17 +1125,28 @@ export default function EditorPage() {
       elements.map((element) => {
         if (!ids.includes(element.id)) return element;
         if (element.type === "arrow" || element.type === "line") {
-          return {
-            ...element,
+          if (Array.isArray(element.points) && element.points.length >= 2) {
+            const nextPoints = element.points.map((point) => ({
+              x: point.x + deltaX,
+              y: point.y + deltaY,
+            }));
+            return applyLineUpdates(element, { points: nextPoints });
+          }
+          const snapped = snapLinePoints({
             startX: element.startX + deltaX,
             startY: element.startY + deltaY,
             endX: element.endX + deltaX,
             endY: element.endY + deltaY,
-            x: element.x + deltaX,
-            y: element.y + deltaY,
-          } as DiagramElement;
+          });
+          return { ...element, ...snapped } as DiagramElement;
         }
-        return { ...element, x: element.x + deltaX, y: element.y + deltaY };
+        const snapped = snapRectByCenter({
+          x: element.x + deltaX,
+          y: element.y + deltaY,
+          width: element.width,
+          height: element.height,
+        });
+        return { ...element, ...snapped } as DiagramElement;
       }),
     );
   };
@@ -818,22 +1335,15 @@ export default function EditorPage() {
       for (const element of diagram.elements) {
         if (element.type !== "arrow" && element.type !== "line") continue;
 
-        const startX =
-          "startX" in element && typeof element.startX === "number"
-            ? element.startX
-            : element.x;
-        const startY =
-          "startY" in element && typeof element.startY === "number"
-            ? element.startY
-            : element.y;
-        const endX =
-          "endX" in element && typeof element.endX === "number"
-            ? element.endX
-            : element.x + element.width;
-        const endY =
-          "endY" in element && typeof element.endY === "number"
-            ? element.endY
-            : element.y + element.height;
+        const points =
+          Array.isArray(element.points) && element.points.length >= 2
+            ? element.points
+            : [
+                { x: element.startX, y: element.startY },
+                { x: element.endX, y: element.endY },
+              ];
+        const start = points[0];
+        const end = points[points.length - 1];
 
         const style = (element as unknown as { style?: string }).style ?? "solid";
         const strokeWidth = Math.max(1, element.strokeWidth);
@@ -850,8 +1360,10 @@ export default function EditorPage() {
         else ctx.setLineDash([]);
 
         ctx.beginPath();
-        ctx.moveTo(startX, startY);
-        ctx.lineTo(endX, endY);
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i += 1) {
+          ctx.lineTo(points[i].x, points[i].y);
+        }
         ctx.stroke();
 
         if (element.type === "arrow") {
@@ -860,20 +1372,20 @@ export default function EditorPage() {
           if (arrowEnds === "end" || arrowEnds === "both") {
             drawArrowhead({
               ctx,
-              fromX: startX,
-              fromY: startY,
-              toX: endX,
-              toY: endY,
+              fromX: start.x,
+              fromY: start.y,
+              toX: end.x,
+              toY: end.y,
               strokeWidth,
             });
           }
           if (arrowEnds === "both") {
             drawArrowhead({
               ctx,
-              fromX: endX,
-              fromY: endY,
-              toX: startX,
-              toY: startY,
+              fromX: end.x,
+              fromY: end.y,
+              toX: start.x,
+              toY: start.y,
               strokeWidth,
             });
           }
@@ -936,6 +1448,7 @@ export default function EditorPage() {
             #diagram-canvas-root .text-slate-400 { color: rgb(148, 163, 184) !important; }
             #diagram-canvas-root .text-slate-700 { color: rgb(51, 65, 85) !important; }
             #diagram-canvas-root .shadow-inner { box-shadow: none !important; }
+            #diagram-canvas-root { background-image: none !important; }
             /* Hide SVG arrows/lines during export; we draw them on canvas to match marker sizing reliably. */
             #diagram-canvas-root svg { opacity: 0 !important; }
           `;
@@ -982,10 +1495,7 @@ export default function EditorPage() {
       />
       <main className="flex-1 bg-slate-50">
         <section className="mx-[10px] flex flex-1 flex-col gap-6 px-0 py-10">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <h1 className="text-2xl font-semibold text-slate-900">
-              {messages.editorTitle}
-            </h1>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-end">
             <div className="flex flex-1 flex-col gap-3 lg:flex-row lg:items-center lg:justify-end">
               <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs text-slate-600">
                 <label className="text-[11px] font-semibold text-slate-500">
@@ -1013,11 +1523,29 @@ export default function EditorPage() {
                   onChange={(event) => setIdPrefix(event.target.value)}
                 />
               </div>
+              <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs text-slate-600">
+                <label className="text-[11px] font-semibold text-slate-500">
+                  {messages.toolGridToggle}
+                </label>
+                <button
+                  type="button"
+                  className={`h-[30px] w-[120px] rounded-full border px-3 text-[11px] font-semibold transition ${
+                    showGrid
+                      ? "border-sky-300 bg-sky-50 text-sky-700"
+                      : "border-slate-200 bg-white text-slate-500"
+                  }`}
+                  onClick={() => setShowGrid((prev) => !prev)}
+                  aria-pressed={showGrid}
+                >
+                  {showGrid ? "ON" : "OFF"}
+                </button>
+              </div>
               <div className="lg:max-w-[calc(100%-220px)]">
                 <DiagramTools
                   variant="toolbar"
                   labels={{
                     title: messages.panelToolsTitle,
+                    toolMoveResize: messages.toolMoveResize,
                     toolBox: messages.toolBox,
                     toolText: messages.toolText,
                     toolLineSolid: messages.toolLineSolid,
@@ -1026,6 +1554,12 @@ export default function EditorPage() {
                     toolArrowDashedSingle: messages.toolArrowDashedSingle,
                     toolArrowSolidDouble: messages.toolArrowSolidDouble,
                     toolArrowDashedDouble: messages.toolArrowDashedDouble,
+                    toolLineSolidElbow: messages.toolLineSolidElbow,
+                    toolLineDashedElbow: messages.toolLineDashedElbow,
+                    toolArrowSolidSingleElbow: messages.toolArrowSolidSingleElbow,
+                    toolArrowDashedSingleElbow: messages.toolArrowDashedSingleElbow,
+                    toolArrowSolidDoubleElbow: messages.toolArrowSolidDoubleElbow,
+                    toolArrowDashedDoubleElbow: messages.toolArrowDashedDoubleElbow,
                     toolClear: messages.toolClear,
                     toolCanvasMenu: messages.toolCanvasMenu,
                     toolExportMenu: messages.toolExportMenu,
@@ -1039,6 +1573,14 @@ export default function EditorPage() {
                     toolDelete: messages.toolDelete,
                     imageExportHint: messages.imageExportHint,
                     loadSample: messages.loadSample,
+                  }}
+                  activeTool={activeTool}
+                  interactionMode={interactionMode}
+                  onChangeMode={(mode) => {
+                    setInteractionMode(mode);
+                    if (mode === "edit") {
+                      setActiveTool(null);
+                    }
                   }}
                   selected={selectedElement}
                   onAddElement={handleAddElement}
@@ -1082,11 +1624,20 @@ export default function EditorPage() {
                   )}
                   selectedIds={selectedIds}
                   emptyMessage={messages.canvasEmpty}
+                  showGrid={showGrid}
+                  activeTool={activeTool}
+                  interactionMode={interactionMode}
+                  disableElementInteractions={interactionMode !== "edit"}
+                  previewLabels={{
+                    box: defaultLabels.box,
+                    text: defaultLabels.text,
+                  }}
                   onSelect={(ids) => {
                     applySelection(ids);
                     setContextMenu(null);
                   }}
-                  onUpdate={handleUpdateElement}
+                  onUpdate={handleUpdateElementFromCanvas}
+                  onCreateElement={handleCreateElementFromDrag}
                   onMoveSelection={handleMoveSelection}
                   onInteractionStart={startInteraction}
                   onInteractionEnd={endInteraction}
@@ -1095,6 +1646,11 @@ export default function EditorPage() {
                     const nextSelection = resolveSelection([args.elementId]);
                     setSelectedIds(nextSelection);
                     setContextMenu({ elementIds: nextSelection, ...position });
+                  }}
+                  onCanvasContextMenu={() => {
+                    setInteractionMode("edit");
+                    setActiveTool(null);
+                    setContextMenu(null);
                   }}
                 />
               </div>
@@ -1176,73 +1732,87 @@ export default function EditorPage() {
           }}
         >
           <div
-            className="absolute w-[360px] max-h-[70vh] overflow-auto"
+            className="absolute w-[360px] max-h-[70vh]"
             style={{ left: contextMenu.left, top: contextMenu.top }}
             onPointerDown={(event) => event.stopPropagation()}
           >
-            <div className="mb-2 grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={() => {
-                  handleBringFront();
+            <div className="max-h-[70vh] overflow-auto rounded-2xl border border-slate-200 bg-white p-3 shadow-lg">
+              <div className="mb-3 flex items-center justify-between">
+                <span className="text-sm font-semibold text-slate-900">
+                  {messages.panelPropertiesTitle}
+                </span>
+              </div>
+              {selectedElement && (
+                <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
+                  <span className="font-semibold text-slate-700">ID:</span>{" "}
+                  <span className="break-all">{selectedElement.id}</span>
+                </div>
+              )}
+              <div className="mb-2 grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => {
+                    handleBringFront();
+                  }}
+                  disabled={!selectedElement}
+                >
+                  {messages.toolBringFront}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => {
+                    handleSendBack();
+                  }}
+                  disabled={!selectedElement}
+                >
+                  {messages.toolSendBack}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-md border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-600 hover:border-rose-300"
+                  onClick={() => {
+                    handleDelete();
+                    setContextMenu(null);
+                  }}
+                >
+                  {messages.toolDelete}
+                </button>
+              </div>
+              <div className="mb-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => {
+                    handleGroup();
+                  }}
+                  disabled={!canGroup}
+                >
+                  {messages.toolGroup}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => {
+                    handleUngroup();
+                  }}
+                  disabled={!canUngroup}
+                >
+                  {messages.toolUngroup}
+                </button>
+              </div>
+              <DiagramInspector
+                selected={selectedElement}
+                showTitle={false}
+                labels={inspectorLabels}
+                selectionCount={selectedElements.length}
+                onUpdate={(updates) => {
+                  if (!selectedElement) return;
+                  handleUpdateElement(selectedElement.id, updates);
                 }}
-                disabled={!selectedElement}
-              >
-                {messages.toolBringFront}
-              </button>
-              <button
-                type="button"
-                className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={() => {
-                  handleSendBack();
-                }}
-                disabled={!selectedElement}
-              >
-                {messages.toolSendBack}
-              </button>
-              <button
-                type="button"
-                className="rounded-md border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-600 hover:border-rose-300"
-                onClick={() => {
-                  handleDelete();
-                  setContextMenu(null);
-                }}
-              >
-                {messages.toolDelete}
-              </button>
+              />
             </div>
-            <div className="mb-2 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={() => {
-                  handleGroup();
-                }}
-                disabled={!canGroup}
-              >
-                {messages.toolGroup}
-              </button>
-              <button
-                type="button"
-                className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={() => {
-                  handleUngroup();
-                }}
-                disabled={!canUngroup}
-              >
-                {messages.toolUngroup}
-              </button>
-            </div>
-            <DiagramInspector
-              selected={selectedElement}
-              labels={inspectorLabels}
-              selectionCount={selectedElements.length}
-              onUpdate={(updates) => {
-                if (!selectedElement) return;
-                handleUpdateElement(selectedElement.id, updates);
-              }}
-            />
           </div>
         </div>
       )}
