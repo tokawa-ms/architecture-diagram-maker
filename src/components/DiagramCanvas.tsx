@@ -84,6 +84,9 @@ const Arrow = ({
   element,
   selected,
   onSelect,
+  pickTopElementId,
+  onSelectIds,
+  onOpenContextMenuForId,
   onUpdate,
   onOpenContextMenu,
   selectedIds,
@@ -96,6 +99,9 @@ const Arrow = ({
   element: Extract<DiagramElement, { type: "arrow" | "line" }>;
   selected: boolean;
   onSelect: () => void;
+  pickTopElementId?: (clientX: number, clientY: number) => string | null;
+  onSelectIds: (ids: string[]) => void;
+  onOpenContextMenuForId?: (elementId: string, clientX: number, clientY: number) => void;
   onUpdate: (updates: Partial<DiagramElement>) => void;
   onOpenContextMenu?: (args: { clientX: number; clientY: number }) => void;
   selectedIds: string[];
@@ -170,6 +176,7 @@ const Arrow = ({
   }>(null);
 
   const [groupDrag, setGroupDrag] = useState<null | {
+    ids: string[];
     lastClientX: number;
     lastClientY: number;
   }>(null);
@@ -278,8 +285,12 @@ const Arrow = ({
       const dx = event.clientX - groupDrag.lastClientX;
       const dy = event.clientY - groupDrag.lastClientY;
       if (dx === 0 && dy === 0) return;
-      setGroupDrag({ lastClientX: event.clientX, lastClientY: event.clientY });
-      onMoveSelection?.({ ids: selectionIdsForDrag, deltaX: dx, deltaY: dy });
+      setGroupDrag({
+        ids: groupDrag.ids,
+        lastClientX: event.clientX,
+        lastClientY: event.clientY,
+      });
+      onMoveSelection?.({ ids: groupDrag.ids, deltaX: dx, deltaY: dy });
     };
 
     const handlePointerUp = () => {
@@ -293,7 +304,7 @@ const Arrow = ({
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
     };
-  }, [groupDrag, onMoveSelection, selectionIdsForDrag]);
+  }, [groupDrag, onMoveSelection]);
 
   const startDragEndpoint = (
     which: "start" | "end",
@@ -319,8 +330,16 @@ const Arrow = ({
     });
   };
 
-  const hitStrokeWidth = Math.max(16, element.strokeWidth * 8);
+  const hitStrokeWidth = Math.max(10, element.strokeWidth + 10);
   const isMultiSelected = selectionIdsForDrag.length > 1;
+  const trySelectOverlappingElement = (event: React.PointerEvent) => {
+    const topMostId = pickTopElementId?.(event.clientX, event.clientY) ?? null;
+    if (topMostId && topMostId !== element.id) {
+      onSelectIds([topMostId]);
+      return topMostId;
+    }
+    return null;
+  };
 
   return (
     <svg
@@ -333,9 +352,17 @@ const Arrow = ({
         opacity: element.opacity,
         zIndex: element.zIndex,
       }}
+      data-diagram-id={element.id}
+      data-diagram-type={element.type}
+      data-diagram-z={element.zIndex}
       onContextMenu={(event) => {
         event.preventDefault();
         event.stopPropagation();
+        const topMostId = pickTopElementId?.(event.clientX, event.clientY) ?? null;
+        if (topMostId && topMostId !== element.id) {
+          onOpenContextMenuForId?.(topMostId, event.clientX, event.clientY);
+          return;
+        }
         onSelect();
         onOpenContextMenu?.({ clientX: event.clientX, clientY: event.clientY });
       }}
@@ -348,11 +375,26 @@ const Arrow = ({
         strokeDasharray={strokeDasharray}
         fill="none"
         pointerEvents="stroke"
-        className="cursor-move"
+        className={
+          selected && !disableElementInteractions ? "cursor-move" : "cursor-default"
+        }
         onPointerDown={(event) => {
           if (disableElementInteractions) return;
           event.preventDefault();
           event.stopPropagation();
+          const passThroughId = trySelectOverlappingElement(event);
+          if (passThroughId) {
+            if (event.button !== 0) return;
+            onInteractionStart?.();
+            setDragHandle(null);
+            setDragLine(null);
+            setGroupDrag({
+              ids: [passThroughId],
+              lastClientX: event.clientX,
+              lastClientY: event.clientY,
+            });
+            return;
+          }
           onSelect();
           onInteractionStart?.();
           if (event.button !== 0) return;
@@ -360,6 +402,7 @@ const Arrow = ({
           if (isMultiSelected) {
             setDragLine(null);
             setGroupDrag({
+              ids: selectionIdsForDrag,
               lastClientX: event.clientX,
               lastClientY: event.clientY,
             });
@@ -448,6 +491,8 @@ const Draggable = ({
   element,
   selected,
   onSelect,
+  pickTopElementId,
+  onSelectIds,
   onUpdate,
   onOpenContextMenu,
   children,
@@ -461,6 +506,8 @@ const Draggable = ({
   element: DiagramElement;
   selected: boolean;
   onSelect: () => void;
+  pickTopElementId?: (clientX: number, clientY: number) => string | null;
+  onSelectIds: (ids: string[]) => void;
   onUpdate: (updates: Partial<DiagramElement>) => void;
   onOpenContextMenu?: (args: { clientX: number; clientY: number }) => void;
   children: React.ReactNode;
@@ -474,6 +521,7 @@ const Draggable = ({
   const [dragging, setDragging] = useState(false);
   const [origin, setOrigin] = useState({ x: 0, y: 0 });
   const [groupDrag, setGroupDrag] = useState<null | {
+    ids: string[];
     lastClientX: number;
     lastClientY: number;
   }>(null);
@@ -487,12 +535,33 @@ const Draggable = ({
     startHeight: number;
   }>(null);
 
+  const trySelectTopMost = (event: React.PointerEvent) => {
+    const topMostId = pickTopElementId?.(event.clientX, event.clientY) ?? null;
+    if (topMostId && topMostId !== element.id) {
+      onSelectIds([topMostId]);
+      return topMostId;
+    }
+    return null;
+  };
+
   const handlePointerDown = (
     event: React.PointerEvent<HTMLDivElement>,
   ) => {
     if (disableElementInteractions) return;
     event.preventDefault();
     event.stopPropagation();
+    const passThroughId = trySelectTopMost(event);
+    if (passThroughId) {
+      if (event.button !== 0) return;
+      event.currentTarget.setPointerCapture(event.pointerId);
+      onInteractionStart?.();
+      setGroupDrag({
+        ids: [passThroughId],
+        lastClientX: event.clientX,
+        lastClientY: event.clientY,
+      });
+      return;
+    }
     onSelect();
     onInteractionStart?.();
 
@@ -502,7 +571,11 @@ const Draggable = ({
 
     event.currentTarget.setPointerCapture(event.pointerId);
     if (selectionIdsForDrag.length > 1) {
-      setGroupDrag({ lastClientX: event.clientX, lastClientY: event.clientY });
+      setGroupDrag({
+        ids: selectionIdsForDrag,
+        lastClientX: event.clientX,
+        lastClientY: event.clientY,
+      });
       return;
     }
     setDragging(true);
@@ -516,8 +589,12 @@ const Draggable = ({
       const dx = event.clientX - groupDrag.lastClientX;
       const dy = event.clientY - groupDrag.lastClientY;
       if (dx === 0 && dy === 0) return;
-      setGroupDrag({ lastClientX: event.clientX, lastClientY: event.clientY });
-      onMoveSelection?.({ ids: selectionIdsForDrag, deltaX: dx, deltaY: dy });
+      setGroupDrag({
+        ids: groupDrag.ids,
+        lastClientX: event.clientX,
+        lastClientY: event.clientY,
+      });
+      onMoveSelection?.({ ids: groupDrag.ids, deltaX: dx, deltaY: dy });
       return;
     }
     if (!dragging) return;
@@ -614,12 +691,15 @@ const Draggable = ({
 
   return (
     <div
-      className={`absolute cursor-move border-2 border-dashed ${
+      className={`absolute border-2 border-dashed ${
         selected ? "border-sky-400" : "border-transparent"
-      }`}
+      } ${selected && !disableElementInteractions ? "cursor-move" : "cursor-default"}`}
       style={{
         ...getElementStyle(element),
       }}
+      data-diagram-id={element.id}
+      data-diagram-type={element.type}
+      data-diagram-z={element.zIndex}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -688,6 +768,7 @@ export default function DiagramCanvas({
   disableElementInteractions,
   onCanvasContextMenu,
 }: DiagramCanvasProps) {
+  const canvasRef = useRef<HTMLDivElement | null>(null);
   const allowElementInteractions = interactionMode === "edit" && !disableElementInteractions;
   const gridSize = 10;
   const snapValue = (value: number) => Math.round(value / gridSize) * gridSize;
@@ -702,6 +783,59 @@ export default function DiagramCanvas({
     endX: snapValue(args.endX),
     endY: snapValue(args.endY),
   });
+  const lockPointToAxis = (
+    anchor: DiagramLinePoint,
+    next: DiagramLinePoint,
+  ): DiagramLinePoint => {
+    const dx = Math.abs(next.x - anchor.x);
+    const dy = Math.abs(next.y - anchor.y);
+    if (dx >= dy) {
+      return { x: next.x, y: anchor.y };
+    }
+    return { x: anchor.x, y: next.y };
+  };
+  const finalizePolylineAt = (
+    event: React.MouseEvent<HTMLDivElement>,
+    draft: NonNullable<typeof polylineDraft>,
+  ) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const endX = event.clientX - rect.left;
+    const endY = event.clientY - rect.top;
+    const snappedPoint = {
+      x: snapValue(endX),
+      y: snapValue(endY),
+    };
+    const last = draft.points[draft.points.length - 1];
+    const nextPoint = isPolylineMode && last
+      ? lockPointToAxis(last, snappedPoint)
+      : snappedPoint;
+    const distance = Math.hypot(
+      nextPoint.x - last.x,
+      nextPoint.y - last.y,
+    );
+    const nextPoints =
+      distance < gridSize ? draft.points : [...draft.points, nextPoint];
+
+    if (nextPoints.length < 2 || !activeTool) {
+      setPolylineDraftState(null);
+      return;
+    }
+
+    const first = nextPoints[0];
+    const end = nextPoints[nextPoints.length - 1];
+    onCreateElement?.({
+      type: activeTool.type,
+      style: activeTool.style,
+      arrowEnds: activeTool.arrowEnds,
+      lineMode: activeTool.lineMode,
+      startX: first.x,
+      startY: first.y,
+      endX: end.x,
+      endY: end.y,
+      points: nextPoints,
+    });
+    setPolylineDraftState(null);
+  };
   const snapRectPoints = (args: {
     startX: number;
     startY: number;
@@ -819,16 +953,115 @@ export default function DiagramCanvas({
       .map((item) => item.id);
   };
 
+  const getLinePointsForElement = (
+    element: Extract<DiagramElement, { type: "arrow" | "line" }>,
+  ): DiagramLinePoint[] => {
+    if (Array.isArray(element.points) && element.points.length >= 2) {
+      return element.points;
+    }
+    return [
+      { x: element.startX, y: element.startY },
+      { x: element.endX, y: element.endY },
+    ];
+  };
+
+  const distanceToSegmentSquared = (
+    point: DiagramLinePoint,
+    a: DiagramLinePoint,
+    b: DiagramLinePoint,
+  ) => {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    if (dx === 0 && dy === 0) {
+      const px = point.x - a.x;
+      const py = point.y - a.y;
+      return px * px + py * py;
+    }
+    const t = ((point.x - a.x) * dx + (point.y - a.y) * dy) / (dx * dx + dy * dy);
+    const clamped = Math.max(0, Math.min(1, t));
+    const closestX = a.x + clamped * dx;
+    const closestY = a.y + clamped * dy;
+    const px = point.x - closestX;
+    const py = point.y - closestY;
+    return px * px + py * py;
+  };
+
+  const isPointNearLine = (
+    point: DiagramLinePoint,
+    element: Extract<DiagramElement, { type: "arrow" | "line" }>,
+  ) => {
+    const points = getLinePointsForElement(element);
+    const threshold = Math.max(5, (element.strokeWidth + 10) / 2);
+    const thresholdSq = threshold * threshold;
+    for (let index = 0; index < points.length - 1; index += 1) {
+      const a = points[index];
+      const b = points[index + 1];
+      if (distanceToSegmentSquared(point, a, b) <= thresholdSq) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const pickTopElementId = (clientX: number, clientY: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    let topMost: DiagramElement | null = null;
+    let topMostIndex = -1;
+    const point = { x, y };
+    for (let index = 0; index < elements.length; index += 1) {
+      const element = elements[index];
+      let hit = false;
+      if (element.type === "line" || element.type === "arrow") {
+        hit = isPointNearLine(point, element);
+      } else {
+        const bounds = getElementBounds(element);
+        hit =
+          x >= bounds.minX && x <= bounds.maxX && y >= bounds.minY && y <= bounds.maxY;
+      }
+      if (!hit) continue;
+      if (!topMost || element.zIndex > topMost.zIndex) {
+        topMost = element;
+        topMostIndex = index;
+        continue;
+      }
+      if (topMost && element.zIndex === topMost.zIndex && index > topMostIndex) {
+        topMost = element;
+        topMostIndex = index;
+      }
+    }
+    return topMost?.id ?? null;
+  };
+  const openContextMenuForId = (
+    elementId: string,
+    clientX: number,
+    clientY: number,
+  ) => {
+    onOpenContextMenu?.({ elementId, clientX, clientY });
+  };
+
   return (
     <div
       id="diagram-canvas-root"
       className="relative isolate z-0 h-full min-h-[520px] w-full rounded-2xl border border-dashed border-slate-300 bg-white shadow-inner"
+      ref={canvasRef}
       style={{
         backgroundImage: showGrid
           ? "linear-gradient(to right, rgba(148, 163, 184, 0.25) 1px, transparent 1px), linear-gradient(to bottom, rgba(148, 163, 184, 0.25) 1px, transparent 1px)"
           : "none",
         backgroundSize: showGrid ? `${gridSize}px ${gridSize}px` : undefined,
         backgroundPosition: showGrid ? "0 0" : undefined,
+      }}
+      onPointerDownCapture={(event) => {
+        if (interactionMode !== "edit" || activeTool) return;
+        if (event.button !== 0) return;
+        const topMostId = pickTopElementId(event.clientX, event.clientY);
+        if (topMostId) {
+          onSelect([topMostId]);
+        }
       }}
       onContextMenu={(event) => {
         const isCanvasTarget = event.target === event.currentTarget;
@@ -907,13 +1140,15 @@ export default function DiagramCanvas({
           const currentY = event.clientY - rect.top;
           setPolylineDraftState((prev) => {
             if (!prev || prev.pendingFinalize) return prev;
-            return {
-              ...prev,
-              current: {
-                x: snapValue(currentX),
-                y: snapValue(currentY),
-              },
+            const snapped = {
+              x: snapValue(currentX),
+              y: snapValue(currentY),
             };
+            const last = prev.points[prev.points.length - 1];
+            const currentPoint = isPolylineMode && last
+              ? lockPointToAxis(last, snapped)
+              : snapped;
+            return { ...prev, current: currentPoint };
           });
           return;
         }
@@ -948,9 +1183,12 @@ export default function DiagramCanvas({
             setPolylineDraftState((prev) => {
               if (!prev) return prev;
               const last = prev.points[prev.points.length - 1];
+              const nextPoint = isPolylineMode && last
+                ? lockPointToAxis(last, snappedPoint)
+                : snappedPoint;
               const distance = Math.hypot(
-                snappedPoint.x - last.x,
-                snappedPoint.y - last.y,
+                nextPoint.x - last.x,
+                nextPoint.y - last.y,
               );
               if (distance < gridSize) {
                 return {
@@ -961,8 +1199,8 @@ export default function DiagramCanvas({
                 };
               }
               return {
-                points: [...prev.points, snappedPoint],
-                current: snappedPoint,
+                points: [...prev.points, nextPoint],
+                current: nextPoint,
                 isDragging: false,
                 pendingFinalize: false,
               };
@@ -1070,6 +1308,19 @@ export default function DiagramCanvas({
           // no-op
         }
       }}
+      onDoubleClick={(event) => {
+        if (interactionMode !== "draw" || !isPolylineMode) return;
+        const activeDraft = polylineDraftRef.current;
+        if (!activeDraft || !activeTool) return;
+        event.preventDefault();
+        event.stopPropagation();
+        finalizePolylineAt(event, activeDraft);
+        try {
+          event.currentTarget.releasePointerCapture(event.pointerId);
+        } catch {
+          // no-op
+        }
+      }}
       onPointerCancel={() => {
         setSelectionBox(null);
         setDrawState(null);
@@ -1084,7 +1335,7 @@ export default function DiagramCanvas({
       {selectionBoxStyle && (
         <div
           className="pointer-events-none absolute border border-sky-400 bg-sky-100/40"
-          style={selectionBoxStyle}
+          style={{ ...selectionBoxStyle, zIndex: 10000 }}
         />
       )}
       {previewRect && activeTool?.type === "box" && (
@@ -1227,6 +1478,9 @@ export default function DiagramCanvas({
               element={element}
               selected={selectedIds.includes(element.id)}
               onSelect={() => onSelect(selectionIdsForDrag)}
+              pickTopElementId={pickTopElementId}
+              onSelectIds={onSelect}
+              onOpenContextMenuForId={openContextMenuForId}
               onUpdate={(updates) => onUpdate(element.id, updates)}
               onOpenContextMenu={(args) =>
                 onOpenContextMenu?.({ elementId: element.id, ...args })
@@ -1247,6 +1501,8 @@ export default function DiagramCanvas({
             element={element}
             selected={selectedIds.includes(element.id)}
             onSelect={() => onSelect(selectionIdsForDrag)}
+            pickTopElementId={pickTopElementId}
+            onSelectIds={onSelect}
             onUpdate={(updates) => onUpdate(element.id, updates)}
             onOpenContextMenu={(args) =>
               onOpenContextMenu?.({ elementId: element.id, ...args })
