@@ -165,6 +165,13 @@ const Arrow = ({
     points?: DiagramLinePoint[];
   }>(null);
 
+  const [dragCorner, setDragCorner] = useState<null | {
+    index: number;
+    offsetX: number;
+    offsetY: number;
+    points: DiagramLinePoint[];
+  }>(null);
+
   const [dragLine, setDragLine] = useState<null | {
     startClientX: number;
     startClientY: number;
@@ -242,6 +249,37 @@ const Arrow = ({
       window.removeEventListener("pointerup", handlePointerUp);
     };
   }, [dragHandle, onUpdate]);
+
+  useEffect(() => {
+    if (!dragCorner) return;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const nextXAbs = event.clientX - dragCorner.offsetX;
+      const nextYAbs = event.clientY - dragCorner.offsetY;
+      const updated = [...dragCorner.points];
+      if (updated.length < 2) return;
+      updated[dragCorner.index] = { x: nextXAbs, y: nextYAbs };
+      onUpdate({
+        points: updated,
+        startX: updated[0].x,
+        startY: updated[0].y,
+        endX: updated[updated.length - 1].x,
+        endY: updated[updated.length - 1].y,
+      });
+    };
+
+    const handlePointerUp = () => {
+      setDragCorner(null);
+      onInteractionEnd?.();
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [dragCorner, onUpdate]);
 
   useEffect(() => {
     if (!dragLine) return;
@@ -330,6 +368,25 @@ const Arrow = ({
     });
   };
 
+  const startDragCorner = (
+    index: number,
+    event: React.PointerEvent<SVGCircleElement>,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onSelect();
+    onInteractionStart?.();
+
+    const point = linePoints[index];
+    if (!point) return;
+    setDragCorner({
+      index,
+      offsetX: event.clientX - point.x,
+      offsetY: event.clientY - point.y,
+      points: linePoints,
+    });
+  };
+
   const hitStrokeWidth = Math.max(10, element.strokeWidth + 10);
   const isMultiSelected = selectionIdsForDrag.length > 1;
   const trySelectOverlappingElement = (event: React.PointerEvent) => {
@@ -350,7 +407,7 @@ const Arrow = ({
         width: boxWidth,
         height: boxHeight,
         opacity: element.opacity,
-        zIndex: element.zIndex,
+        zIndex: selected ? element.zIndex + 10000 : element.zIndex,
       }}
       data-diagram-id={element.id}
       data-diagram-type={element.type}
@@ -382,7 +439,7 @@ const Arrow = ({
           if (disableElementInteractions) return;
           event.preventDefault();
           event.stopPropagation();
-          const passThroughId = trySelectOverlappingElement(event);
+          const passThroughId = selected ? null : trySelectOverlappingElement(event);
           if (passThroughId) {
             if (event.button !== 0) return;
             onInteractionStart?.();
@@ -468,6 +525,22 @@ const Arrow = ({
               startDragEndpoint("start", event);
             }}
           />
+          {relativePoints.slice(1, -1).map((point, index) => (
+            <circle
+              key={`corner-${element.id}-${index}`}
+              cx={point.x}
+              cy={point.y}
+              r={5}
+              fill="white"
+              stroke="#38BDF8"
+              strokeWidth={2}
+              pointerEvents="all"
+              onPointerDown={(event) => {
+                if (disableElementInteractions) return;
+                startDragCorner(index + 1, event);
+              }}
+            />
+          ))}
           <circle
             cx={relativePoints[relativePoints.length - 1].x}
             cy={relativePoints[relativePoints.length - 1].y}
