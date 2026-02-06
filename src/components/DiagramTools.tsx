@@ -13,6 +13,7 @@ interface DiagramToolsProps {
   variant?: "sidebar" | "toolbar";
   labels: {
     title: string;
+    toolMoveResize: string;
     toolBox: string;
     toolText: string;
     toolLineSolid: string;
@@ -47,6 +48,8 @@ interface DiagramToolsProps {
     arrowEnds?: ArrowEnds;
     lineMode?: "straight" | "polyline";
   } | null;
+  interactionMode: "edit" | "draw";
+  onChangeMode: (mode: "edit" | "draw") => void;
   selected: DiagramElement | null;
   onAddElement: (
     type: DiagramElementType,
@@ -68,6 +71,8 @@ export default function DiagramTools({
   variant = "sidebar",
   labels,
   activeTool,
+  interactionMode,
+  onChangeMode,
   selected,
   onAddElement,
   onClear,
@@ -82,7 +87,7 @@ export default function DiagramTools({
   const baseButtonClass =
     "whitespace-nowrap rounded-md border border-slate-200 px-2 py-1.5 text-[11px] font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900";
   const activeButtonClass =
-    "border-sky-400 bg-sky-50 text-sky-700";
+    "border-sky-500 bg-sky-200 text-sky-900 shadow-sm";
   const menuItemClass =
     "block w-full px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50";
 
@@ -108,6 +113,8 @@ export default function DiagramTools({
     activeTool.arrowEnds === arrowEnds &&
     (activeTool.lineMode ?? "straight") === (lineMode ?? "straight");
 
+  const isMoveResizeActive = interactionMode === "edit";
+
   // Note: bring-front / send-back are intentionally not exposed here;
   // they are available via the canvas context menu.
   void onBringFront;
@@ -117,6 +124,16 @@ export default function DiagramTools({
     return (
       <div className="relative z-10 rounded-2xl border border-slate-200 bg-white px-3 py-2">
         <div className="grid auto-cols-max grid-flow-col grid-rows-2 gap-2 overflow-x-auto">
+          <button
+            type="button"
+            className={`${baseButtonClass} ${
+              isMoveResizeActive ? activeButtonClass : ""
+            }`}
+            onClick={() => onChangeMode("edit")}
+          >
+            {labels.toolMoveResize}
+          </button>
+          <div aria-hidden="true" />
           <button
             type="button"
             className={`${baseButtonClass} ${
@@ -353,12 +370,22 @@ export default function DiagramTools({
           <button
             type="button"
             className={`${baseButtonClass} ${
+              isMoveResizeActive ? activeButtonClass : ""
+            }`}
+            onClick={() => onChangeMode("edit")}
+          >
+            {labels.toolMoveResize}
+          </button>
+          <button
+            type="button"
+            className={`${baseButtonClass} ${
               isActive("box") ? activeButtonClass : ""
             }`}
             onClick={() => onAddElement("box")}
           >
             {labels.toolBox}
           </button>
+          <div aria-hidden="true" />
           <button
             type="button"
             className={`${baseButtonClass} ${
