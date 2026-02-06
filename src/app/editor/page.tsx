@@ -1325,73 +1325,81 @@ export default function EditorPage() {
           }}
         >
           <div
-            className="absolute w-[360px] max-h-[70vh] overflow-auto"
+            className="absolute w-[360px] max-h-[70vh]"
             style={{ left: contextMenu.left, top: contextMenu.top }}
             onPointerDown={(event) => event.stopPropagation()}
           >
-            <div className="mb-2 grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={() => {
-                  handleBringFront();
+            <div className="max-h-[70vh] overflow-auto rounded-2xl border border-slate-200 bg-white p-3 shadow-lg">
+              <div className="mb-3 flex items-center justify-between">
+                <span className="text-sm font-semibold text-slate-900">
+                  {messages.panelPropertiesTitle}
+                </span>
+              </div>
+              <div className="mb-2 grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => {
+                    handleBringFront();
+                  }}
+                  disabled={!selectedElement}
+                >
+                  {messages.toolBringFront}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => {
+                    handleSendBack();
+                  }}
+                  disabled={!selectedElement}
+                >
+                  {messages.toolSendBack}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-md border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-600 hover:border-rose-300"
+                  onClick={() => {
+                    handleDelete();
+                    setContextMenu(null);
+                  }}
+                >
+                  {messages.toolDelete}
+                </button>
+              </div>
+              <div className="mb-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => {
+                    handleGroup();
+                  }}
+                  disabled={!canGroup}
+                >
+                  {messages.toolGroup}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => {
+                    handleUngroup();
+                  }}
+                  disabled={!canUngroup}
+                >
+                  {messages.toolUngroup}
+                </button>
+              </div>
+              <DiagramInspector
+                selected={selectedElement}
+                showTitle={false}
+                labels={inspectorLabels}
+                selectionCount={selectedElements.length}
+                onUpdate={(updates) => {
+                  if (!selectedElement) return;
+                  handleUpdateElement(selectedElement.id, updates);
                 }}
-                disabled={!selectedElement}
-              >
-                {messages.toolBringFront}
-              </button>
-              <button
-                type="button"
-                className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={() => {
-                  handleSendBack();
-                }}
-                disabled={!selectedElement}
-              >
-                {messages.toolSendBack}
-              </button>
-              <button
-                type="button"
-                className="rounded-md border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-600 hover:border-rose-300"
-                onClick={() => {
-                  handleDelete();
-                  setContextMenu(null);
-                }}
-              >
-                {messages.toolDelete}
-              </button>
+              />
             </div>
-            <div className="mb-2 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={() => {
-                  handleGroup();
-                }}
-                disabled={!canGroup}
-              >
-                {messages.toolGroup}
-              </button>
-              <button
-                type="button"
-                className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={() => {
-                  handleUngroup();
-                }}
-                disabled={!canUngroup}
-              >
-                {messages.toolUngroup}
-              </button>
-            </div>
-            <DiagramInspector
-              selected={selectedElement}
-              labels={inspectorLabels}
-              selectionCount={selectedElements.length}
-              onUpdate={(updates) => {
-                if (!selectedElement) return;
-                handleUpdateElement(selectedElement.id, updates);
-              }}
-            />
           </div>
         </div>
       )}

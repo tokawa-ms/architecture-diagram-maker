@@ -5,6 +5,7 @@ import type { DiagramElement } from "@/lib/types";
 interface DiagramInspectorProps {
   selected: DiagramElement | null;
   selectionCount?: number;
+  showTitle?: boolean;
   labels: {
     title: string;
     hint: string;
@@ -99,13 +100,16 @@ const ColorInput = ({
 export default function DiagramInspector({
   selected,
   selectionCount,
+  showTitle = true,
   labels,
   onUpdate,
 }: DiagramInspectorProps) {
   if (!selected) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
-        <p className="font-semibold text-slate-700">{labels.title}</p>
+        {showTitle && (
+          <p className="font-semibold text-slate-700">{labels.title}</p>
+        )}
         <p className="mt-2 text-xs text-slate-400">
           {selectionCount && selectionCount > 1
             ? labels.multiSelection
@@ -118,7 +122,9 @@ export default function DiagramInspector({
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
-      <p className="font-semibold text-slate-900">{labels.title}</p>
+      {showTitle && (
+        <p className="font-semibold text-slate-900">{labels.title}</p>
+      )}
       <div className="mt-3 grid gap-3">
         {(selected.type === "icon" || selected.type === "box") && (
           <TextInput
