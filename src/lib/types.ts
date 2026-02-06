@@ -4,6 +4,11 @@ export type ArrowStyle = "solid" | "dashed";
 
 export type ArrowEnds = "end" | "both";
 
+export interface DiagramLinePoint {
+  x: number;
+  y: number;
+}
+
 export interface DiagramElementBase {
   id: string;
   type: DiagramElementType;
@@ -45,6 +50,7 @@ export interface DiagramArrowElement extends DiagramElementBase {
   startY: number;
   endX: number;
   endY: number;
+  points?: DiagramLinePoint[];
   stroke: string;
   strokeWidth: number;
   style: ArrowStyle;
@@ -57,6 +63,7 @@ export interface DiagramLineElement extends DiagramElementBase {
   startY: number;
   endX: number;
   endY: number;
+  points?: DiagramLinePoint[];
   stroke: string;
   strokeWidth: number;
   style: ArrowStyle;
