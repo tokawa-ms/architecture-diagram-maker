@@ -112,10 +112,6 @@ export default function DiagramStoragePanel({
   const [importFile, setImportFile] = useState<File | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
-  const refreshItems = async () => {
-    await refresh();
-  };
-
   const buildNewId = () => {
     const trimmed = idPrefix?.trim();
     const suffix = Date.now();
@@ -134,7 +130,7 @@ export default function DiagramStoragePanel({
     if (!overwrite) {
       onLoad(document);
     }
-    await refreshItems();
+    await refresh();
   };
 
   const handleCopy = async () => {
@@ -159,7 +155,7 @@ export default function DiagramStoragePanel({
         return;
       }
       await saveDiagram(document);
-      await refreshItems();
+      await refresh();
       setImportFile(null);
       if (importInputRef.current) {
         importInputRef.current.value = "";
@@ -274,7 +270,7 @@ export default function DiagramStoragePanel({
                   onClick={async () => {
                     await deleteDiagram(item.id);
                     console.log("Deleted diagram from storage", item.id);
-                    await refreshItems();
+                    await refresh();
                   }}
                 >
                   {labels.storageDelete}
