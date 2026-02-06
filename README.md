@@ -14,6 +14,9 @@
 - Z-Order 操作（前面/背面）と複製・削除
 - ローカルストレージへの JSON 保存・読み込み
 - PNG / JSON 形式でエクスポート
+- アイコン一覧ページで検索・閲覧
+- 履歴スナップショットの自動保存と `/history` からの復元
+- 設定画面で履歴保持件数と PNG エクスポート倍率を調整
 
 ## ドキュメント
 
@@ -89,6 +92,13 @@ docker run --rm -p 3000:3000 -e PORT=3000 architecture-diagram-maker
 > コンテナのパーティションキーは `/id` を前提としています。AAD 認証の場合は RBAC で `Cosmos DB Built-in Data Contributor` を付与してください。
 
 ローカル開発では `az login` 済みの Azure CLI 資格情報を利用します。本番は Azure Container Apps のマネージド ID で実行する想定です。
+
+## UI 設定の既定値
+
+- `NEXT_PUBLIC_HISTORY_LIMIT`: 履歴保持件数の初期値 (10〜1000)
+- `NEXT_PUBLIC_EXPORT_SCALE`: PNG エクスポート倍率の初期値 (1〜8)
+
+設定画面で変更した値はローカルストレージに保存されます。
 
 ## 多言語対応
 

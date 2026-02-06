@@ -14,6 +14,9 @@ A lightweight editor for quickly drafting architecture diagrams and saving them 
 - Z-order control plus duplicate/delete
 - Save/load JSON in local storage
 - Export to PNG / JSON
+- Browse and search icons on the catalog page
+- Auto-save history snapshots and restore via `/history`
+- Configure history retention and PNG export scale in settings
 
 ## Docs
 
@@ -89,6 +92,13 @@ Set the following to enable Cosmos DB via DefaultAzureCredential. Ensure the dat
 > The container partition key is expected to be `/id`. With AAD auth, grant the `Cosmos DB Built-in Data Contributor` role.
 
 For local development, use Azure CLI credentials (`az login`). In production, run with a managed identity in Azure Container Apps.
+
+## UI Defaults
+
+- `NEXT_PUBLIC_HISTORY_LIMIT`: default history retention (10-1000)
+- `NEXT_PUBLIC_EXPORT_SCALE`: default PNG export scale (1-8)
+
+Values changed in settings are persisted to local storage.
 
 ## Localization
 

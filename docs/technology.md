@@ -5,7 +5,7 @@
 ## フロントエンド
 
 - Next.js App Router + React 19 + TypeScript
-- 画面: `/`, `/editor`, `/items`, `/settings`, `/about`
+- 画面: `/`, `/editor`, `/items`, `/history`, `/settings`, `/about`
 - 多言語: `src/lib/i18n.ts` で文言を一元管理し、`?lang=` で切り替え
 
 ## UI / スタイル
@@ -20,7 +20,7 @@
 
 ## データ保存
 
-- 既定はブラウザのローカルストレージ
+- 既定はブラウザのローカルストレージ (保存・履歴・ドラフト)
 - Azure Cosmos DB (SQL API) が設定されている場合は `@azure/cosmos` と `DefaultAzureCredential` を利用
 
 ## エクスポート
