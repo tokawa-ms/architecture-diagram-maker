@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { supportedLanguages, type LanguageCode } from "@/lib/i18n";
 
 interface LanguageSwitcherProps {
@@ -11,8 +11,9 @@ interface LanguageSwitcherProps {
 export default function LanguageSwitcher({ current, label }: LanguageSwitcherProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const handleChange = (value: string) => {
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(searchParams.toString());
     params.set("lang", value);
     router.push(`${pathname}?${params.toString()}`);
   };
