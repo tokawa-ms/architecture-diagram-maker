@@ -447,6 +447,9 @@ export default function EditorPage() {
     arrowEnds?: ArrowEnds;
     lineMode?: "straight" | "polyline";
   }>(null);
+  const [interactionMode, setInteractionMode] = useState<"edit" | "draw">(
+    "edit",
+  );
   const [storageModalOpen, setStorageModalOpen] = useState(false);
   const [historyLimit, setHistoryLimit] = useState(() => getHistoryLimit());
   const [historyPast, setHistoryPast] = useState<
@@ -771,8 +774,10 @@ export default function EditorPage() {
         prev.arrowEnds === nextTool.arrowEnds &&
         (prev.lineMode ?? "straight") === (nextTool.lineMode ?? "straight")
       ) {
+        setInteractionMode("edit");
         return null;
       }
+      setInteractionMode("draw");
       return {
         ...nextTool,
         lineMode: nextTool.lineMode ?? "straight",
@@ -937,8 +942,14 @@ export default function EditorPage() {
     applySelection([elementWithIcon.id]);
   };
 
-  const handleUpdateElement = (id: string, updates: Partial<DiagramElement>) => {
-    recordHistoryIfNeeded();
+  const handleUpdateElement = (
+    id: string,
+    updates: Partial<DiagramElement>,
+    options?: { skipHistory?: boolean },
+  ) => {
+    if (!options?.skipHistory) {
+      recordHistoryIfNeeded();
+    }
     updateElements((elements) =>
       elements.map((element) => {
         if (element.id !== id) {
@@ -975,6 +986,13 @@ export default function EditorPage() {
         } as DiagramElement;
       }),
     );
+  };
+
+  const handleUpdateElementFromCanvas = (
+    id: string,
+    updates: Partial<DiagramElement>,
+  ) => {
+    handleUpdateElement(id, updates, { skipHistory: true });
   };
 
   const handleClear = () => {
@@ -1465,9 +1483,6 @@ export default function EditorPage() {
 
   const canGroup = selectedElements.length >= 2;
   const canUngroup = selectedElements.some((element) => element.groupId);
-  const isLineCreationMode =
-    Boolean(activeTool) &&
-    (activeTool?.type === "arrow" || activeTool?.type === "line");
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -1533,6 +1548,7 @@ export default function EditorPage() {
                   variant="toolbar"
                   labels={{
                     title: messages.panelToolsTitle,
+                    toolMoveResize: messages.toolMoveResize,
                     toolBox: messages.toolBox,
                     toolText: messages.toolText,
                     toolLineSolid: messages.toolLineSolid,
@@ -1562,6 +1578,13 @@ export default function EditorPage() {
                     loadSample: messages.loadSample,
                   }}
                   activeTool={activeTool}
+                  interactionMode={interactionMode}
+                  onChangeMode={(mode) => {
+                    setInteractionMode(mode);
+                    if (mode === "edit") {
+                      setActiveTool(null);
+                    }
+                  }}
                   selected={selectedElement}
                   onAddElement={handleAddElement}
                   onClear={handleClear}
@@ -1606,7 +1629,8 @@ export default function EditorPage() {
                   emptyMessage={messages.canvasEmpty}
                   showGrid={showGrid}
                   activeTool={activeTool}
-                  disableElementInteractions={isLineCreationMode}
+                  interactionMode={interactionMode}
+                  disableElementInteractions={interactionMode !== "edit"}
                   previewLabels={{
                     box: defaultLabels.box,
                     text: defaultLabels.text,
@@ -1615,7 +1639,7 @@ export default function EditorPage() {
                     applySelection(ids);
                     setContextMenu(null);
                   }}
-                  onUpdate={handleUpdateElement}
+                  onUpdate={handleUpdateElementFromCanvas}
                   onCreateElement={handleCreateElementFromDrag}
                   onMoveSelection={handleMoveSelection}
                   onInteractionStart={startInteraction}
@@ -1625,6 +1649,11 @@ export default function EditorPage() {
                     const nextSelection = resolveSelection([args.elementId]);
                     setSelectedIds(nextSelection);
                     setContextMenu({ elementIds: nextSelection, ...position });
+                  }}
+                  onCanvasContextMenu={() => {
+                    setInteractionMode("edit");
+                    setActiveTool(null);
+                    setContextMenu(null);
                   }}
                 />
               </div>

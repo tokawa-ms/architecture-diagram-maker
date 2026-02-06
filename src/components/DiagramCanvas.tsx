@@ -9,6 +9,7 @@ interface DiagramCanvasProps {
   emptyMessage: string;
   showGrid: boolean;
   disableElementInteractions?: boolean;
+  interactionMode?: "edit" | "draw";
   activeTool?: {
     type: DiagramElement["type"];
     style?: "solid" | "dashed";
@@ -44,6 +45,7 @@ interface DiagramCanvasProps {
     clientX: number;
     clientY: number;
   }) => void;
+  onCanvasContextMenu?: (args: { clientX: number; clientY: number }) => void;
 }
 
 const getElementStyle = (element: DiagramElement) => {
@@ -408,7 +410,7 @@ const Arrow = ({
         </defs>
       )}
 
-      {selected && (
+      {selected && !disableElementInteractions && (
         <>
           <circle
             cx={relativePoints[0].x}
@@ -535,6 +537,7 @@ const Draggable = ({
 
   const isResizable =
     selected &&
+    !disableElementInteractions &&
     (element.type === "box" || element.type === "text" || element.type === "icon");
 
   useEffect(() => {
@@ -592,6 +595,7 @@ const Draggable = ({
     handle: "nw" | "ne" | "sw" | "se",
     event: React.PointerEvent<HTMLDivElement>,
   ) => {
+    if (disableElementInteractions) return;
     event.preventDefault();
     event.stopPropagation();
     onSelect();
@@ -672,6 +676,7 @@ export default function DiagramCanvas({
   emptyMessage,
   showGrid,
   activeTool,
+  interactionMode = "edit",
   previewLabels,
   onSelect,
   onUpdate,
@@ -681,7 +686,9 @@ export default function DiagramCanvas({
   onMoveSelection,
   onOpenContextMenu,
   disableElementInteractions,
+  onCanvasContextMenu,
 }: DiagramCanvasProps) {
+  const allowElementInteractions = interactionMode === "edit" && !disableElementInteractions;
   const gridSize = 10;
   const snapValue = (value: number) => Math.round(value / gridSize) * gridSize;
   const snapLinePoints = (args: {
@@ -823,6 +830,13 @@ export default function DiagramCanvas({
         backgroundSize: showGrid ? `${gridSize}px ${gridSize}px` : undefined,
         backgroundPosition: showGrid ? "0 0" : undefined,
       }}
+      onContextMenu={(event) => {
+        const isCanvasTarget = event.target === event.currentTarget;
+        if (!isCanvasTarget) return;
+        event.preventDefault();
+        event.stopPropagation();
+        onCanvasContextMenu?.({ clientX: event.clientX, clientY: event.clientY });
+      }}
       onPointerDown={(event) => {
         if (event.button !== 0) return;
         const isCanvasTarget = event.target === event.currentTarget;
@@ -830,7 +844,7 @@ export default function DiagramCanvas({
         const rect = event.currentTarget.getBoundingClientRect();
         const startX = event.clientX - rect.left;
         const startY = event.clientY - rect.top;
-        if (activeTool && isPolylineMode) {
+        if (interactionMode === "draw" && activeTool && isPolylineMode) {
           event.currentTarget.setPointerCapture(event.pointerId);
           onSelect([]);
           setSelectionBox(null);
@@ -875,12 +889,13 @@ export default function DiagramCanvas({
           });
           return;
         }
-        if (activeTool) {
+        if (interactionMode === "draw" && activeTool) {
           event.currentTarget.setPointerCapture(event.pointerId);
           setDrawState({ startX, startY, currentX: startX, currentY: startY });
           onSelect([]);
           return;
         }
+        if (interactionMode !== "edit") return;
         event.currentTarget.setPointerCapture(event.pointerId);
         setSelectionBox({ startX, startY, currentX: startX, currentY: startY });
         onSelect([]);
@@ -992,7 +1007,7 @@ export default function DiagramCanvas({
             );
           }
         }
-        if (drawState && activeTool) {
+        if (interactionMode === "draw" && drawState && activeTool) {
           const rect = event.currentTarget.getBoundingClientRect();
           const endX = event.clientX - rect.left;
           const endY = event.clientY - rect.top;
@@ -1221,7 +1236,7 @@ export default function DiagramCanvas({
               selectionIdsForDrag={selectionIdsForDrag}
               onInteractionStart={onInteractionStart}
               onInteractionEnd={onInteractionEnd}
-              disableElementInteractions={disableElementInteractions}
+              disableElementInteractions={!allowElementInteractions}
             />
           );
         }
@@ -1241,7 +1256,7 @@ export default function DiagramCanvas({
             selectionIdsForDrag={selectionIdsForDrag}
             onInteractionStart={onInteractionStart}
             onInteractionEnd={onInteractionEnd}
-            disableElementInteractions={disableElementInteractions}
+            disableElementInteractions={!allowElementInteractions}
           >
             {element.type === "icon" && (
               <div className="flex h-full w-full flex-col items-center justify-center gap-2">
