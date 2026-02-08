@@ -38,6 +38,7 @@ A lightweight editor for quickly drafting architecture diagrams and saving them 
 - Browse and search icons on the catalog page
 - Auto-save history snapshots and restore
 - Configure history retention and PNG export scale in settings
+- Simple login screen when USER_NAME / USER_PASS are set
 
 ## Docs
 
@@ -98,7 +99,7 @@ Visit `http://localhost:3000/editor` to open the editor.
 - USER_NAME: simple auth username
 - USER_PASS: simple auth password
 
-When USER_NAME and USER_PASS are set, the login screen is required and pages/APIs are blocked until authentication succeeds.
+When USER_NAME and USER_PASS are set, the `/login` screen is required and pages/APIs are blocked until authentication succeeds.
 
 ## Docker
 
