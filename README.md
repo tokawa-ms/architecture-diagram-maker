@@ -95,6 +95,10 @@ npm run dev
 - NEXT_PUBLIC_HISTORY_LIMIT: 履歴保持件数 (10-1000)
 - NEXT_PUBLIC_EXPORT_SCALE: PNG エクスポート倍率 (1-8)
 - ICONS_SAMPLE_ENABLED: サンプルアイコン表示切り替え
+- USER_NAME: 簡易認証ユーザー名
+- USER_PASS: 簡易認証パスワード
+
+USER_NAME と USER_PASS を設定するとログイン画面が有効になり、認証なしでは画面/API にアクセスできません。
 
 ## Docker
 

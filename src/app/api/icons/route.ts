@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import path from "node:path";
 import { readdir } from "node:fs/promises";
+import { isRequestAuthenticated, isSimpleAuthEnabled } from "@/lib/simple-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,6 +38,15 @@ const encodePath = (value: string) =>
     .split("/")
     .map((segment) => encodeURIComponent(segment))
     .join("/");
+
+const enforceSimpleAuth = (request: Request) => {
+  if (!isSimpleAuthEnabled()) return null;
+  if (isRequestAuthenticated(request)) return null;
+  return NextResponse.json(
+    { message: "Authentication required." },
+    { status: 401 },
+  );
+};
 
 const walkIcons = async (args: {
   fsRoot: string;
@@ -100,7 +110,9 @@ const walkIcons = async (args: {
   return items;
 };
 
-export async function GET() {
+export async function GET(request: Request) {
+  const authError = enforceSimpleAuth(request);
+  if (authError) return authError;
   const includeSample = isTruthyEnv(process.env.ICONS_SAMPLE_ENABLED);
 
   const publicDir = path.join(process.cwd(), "public");

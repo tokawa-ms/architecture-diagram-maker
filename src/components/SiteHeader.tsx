@@ -13,6 +13,7 @@ interface SiteHeaderProps {
   languageLabel: string;
   appName: string;
   tagline: string;
+  logoutLabel?: string;
 }
 
 export default function SiteHeader({
@@ -21,6 +22,7 @@ export default function SiteHeader({
   languageLabel,
   appName,
   tagline,
+  logoutLabel,
 }: SiteHeaderProps) {
   const withLang = (href: string) => `${href}?lang=${currentLanguage}`;
 
@@ -45,6 +47,17 @@ export default function SiteHeader({
               </Link>
             ))}
           </nav>
+          {logoutLabel && (
+            <form action="/api/auth/logout" method="POST">
+              <input type="hidden" name="lang" value={currentLanguage} />
+              <button
+                type="submit"
+                className="rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900"
+              >
+                {logoutLabel}
+              </button>
+            </form>
+          )}
           <LanguageSwitcher current={currentLanguage} label={languageLabel} />
         </div>
       </div>
