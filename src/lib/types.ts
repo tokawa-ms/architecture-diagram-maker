@@ -26,6 +26,7 @@ export interface DiagramIconElement extends DiagramElementBase {
   type: "icon";
   src: string;
   label?: string;
+  labelAlign?: "left" | "center" | "right";
 }
 
 export interface DiagramBoxElement extends DiagramElementBase {
@@ -35,6 +36,8 @@ export interface DiagramBoxElement extends DiagramElementBase {
   borderWidth: number;
   radius: number;
   label?: string;
+  labelAlignX?: "left" | "center" | "right";
+  labelAlignY?: "top" | "center" | "bottom";
 }
 
 export interface DiagramTextElement extends DiagramElementBase {

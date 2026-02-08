@@ -28,6 +28,14 @@ interface DiagramInspectorProps {
     propertyStartY: string;
     propertyEndX: string;
     propertyEndY: string;
+    propertyLabelAlign: string;
+    propertyLabelAlignX: string;
+    propertyLabelAlignY: string;
+    alignLeft: string;
+    alignCenter: string;
+    alignRight: string;
+    alignTop: string;
+    alignBottom: string;
   };
   onUpdate: (updates: Partial<DiagramElement>) => void;
 }
@@ -101,6 +109,33 @@ const ColorInput = ({
   </label>
 );
 
+const SelectInput = ({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: Array<{ value: string; label: string }>;
+  onChange: (value: string) => void;
+}) => (
+  <label className="flex flex-col gap-1 text-xs text-slate-500">
+    <span className="font-medium text-slate-700">{label}</span>
+    <select
+      className="rounded-md border border-slate-200 bg-white px-2 py-1 text-sm text-slate-700"
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+    >
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  </label>
+);
+
 export default function DiagramInspector({
   selected,
   selectionCount,
@@ -137,6 +172,22 @@ export default function DiagramInspector({
             onChange={(value) => onUpdate({ label: value })}
           />
         )}
+        {selected.type === "icon" && (
+          <SelectInput
+            label={labels.propertyLabelAlign}
+            value={selected.labelAlign ?? "center"}
+            options={[
+              { value: "left", label: labels.alignLeft },
+              { value: "center", label: labels.alignCenter },
+              { value: "right", label: labels.alignRight },
+            ]}
+            onChange={(value) =>
+              onUpdate({
+                labelAlign: value as "left" | "center" | "right",
+              })
+            }
+          />
+        )}
         {selected.type === "text" && (
           <TextInput
             label={labels.propertyText}
@@ -162,6 +213,34 @@ export default function DiagramInspector({
               min={0}
               max={48}
               onChange={(value) => onUpdate({ radius: value })}
+            />
+            <SelectInput
+              label={labels.propertyLabelAlignY}
+              value={selected.labelAlignY ?? "top"}
+              options={[
+                { value: "top", label: labels.alignTop },
+                { value: "center", label: labels.alignCenter },
+                { value: "bottom", label: labels.alignBottom },
+              ]}
+              onChange={(value) =>
+                onUpdate({
+                  labelAlignY: value as "top" | "center" | "bottom",
+                })
+              }
+            />
+            <SelectInput
+              label={labels.propertyLabelAlignX}
+              value={selected.labelAlignX ?? "left"}
+              options={[
+                { value: "left", label: labels.alignLeft },
+                { value: "center", label: labels.alignCenter },
+                { value: "right", label: labels.alignRight },
+              ]}
+              onChange={(value) =>
+                onUpdate({
+                  labelAlignX: value as "left" | "center" | "right",
+                })
+              }
             />
           </div>
         )}

@@ -223,6 +223,8 @@ const createElement = (
         borderWidth: 2,
         radius: 12,
         label: labels.box,
+        labelAlignX: "left",
+        labelAlignY: "top",
       } as DiagramElement);
     case "text":
       return snapElementToGrid({
@@ -298,6 +300,7 @@ const createElement = (
         height: 80,
         src: "/icons-sample/azure.svg",
         label: labels.icon,
+        labelAlign: "center",
       } as DiagramElement);
   }
 };
@@ -444,7 +447,7 @@ export default function EditorPage() {
   const language = useLanguage();
   const messages = getMessages(language);
   const [diagram, setDiagram] = useState<DiagramDocument>(() =>
-    loadDraftDiagram() ?? createEmptyDocument(messages.defaultDiagramName),
+    createEmptyDocument(messages.defaultDiagramName),
   );
   const [idPrefix, setIdPrefix] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -524,6 +527,14 @@ export default function EditorPage() {
       propertyStartY: messages.propertyStartY,
       propertyEndX: messages.propertyEndX,
       propertyEndY: messages.propertyEndY,
+      propertyLabelAlign: messages.propertyLabelAlign,
+      propertyLabelAlignX: messages.propertyLabelAlignX,
+      propertyLabelAlignY: messages.propertyLabelAlignY,
+      alignLeft: messages.alignLeft,
+      alignCenter: messages.alignCenter,
+      alignRight: messages.alignRight,
+      alignTop: messages.alignTop,
+      alignBottom: messages.alignBottom,
     }),
     [messages],
   );
@@ -549,6 +560,17 @@ export default function EditorPage() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [storageModalOpen]);
+
+  useEffect(() => {
+    const draft = loadDraftDiagram();
+    if (!draft) return;
+    isRestoringRef.current = true;
+    setDiagram(draft);
+    setSelectedIds([]);
+    queueMicrotask(() => {
+      isRestoringRef.current = false;
+    });
+  }, [messages.defaultDiagramName]);
 
   useEffect(() => {
     diagramRef.current = diagram;

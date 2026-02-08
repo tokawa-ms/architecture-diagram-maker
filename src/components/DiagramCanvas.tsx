@@ -1601,16 +1601,48 @@ export default function DiagramCanvas({
                   />
                 </div>
                 {element.label && (
-                  <span className="text-xs font-medium text-slate-700">
+                  <span
+                    className={`w-full text-xs font-medium text-slate-700 ${{
+                      left: "text-left",
+                      center: "text-center",
+                      right: "text-right",
+                    }[element.labelAlign ?? "center"]}`}
+                  >
                     {element.label}
                   </span>
                 )}
               </div>
             )}
             {element.type === "box" && (
-              <div className="flex h-full w-full items-start justify-start p-2">
+              <div
+                className="flex h-full w-full p-2"
+                style={{
+                  alignItems:
+                    element.labelAlignY === "center"
+                      ? "center"
+                      : element.labelAlignY === "bottom"
+                        ? "flex-end"
+                        : "flex-start",
+                  justifyContent:
+                    element.labelAlignX === "center"
+                      ? "center"
+                      : element.labelAlignX === "right"
+                        ? "flex-end"
+                        : "flex-start",
+                }}
+              >
                 {element.label && (
-                  <span className="text-xs font-semibold text-slate-700">
+                  <span
+                    className="block w-full text-xs font-semibold text-slate-700"
+                    style={{
+                      textAlign:
+                        element.labelAlignX === "center"
+                          ? "center"
+                          : element.labelAlignX === "right"
+                            ? "right"
+                            : "left",
+                    }}
+                  >
                     {element.label}
                   </span>
                 )}
