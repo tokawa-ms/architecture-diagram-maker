@@ -16,7 +16,7 @@
 ## Backend / API
 
 - Next.js Route Handlers (Node.js 20)
-- `/api/health`, `/api/icons`, `/api/diagrams`
+- `/api/health`, `/api/icons`, `/api/diagrams`, `/api/auth/login`, `/api/auth/logout`
 
 ## Persistence
 

@@ -30,6 +30,11 @@
   - `NEXT_PUBLIC_EXPORT_SCALE` (1-8)
 - Updated values are saved to local storage
 
+## Simple Auth
+
+- Setting `USER_NAME` / `USER_PASS` requires users to log in at `/login`
+- `/api/auth/login` issues the auth cookie and `/api/auth/logout` clears it
+
 ## Hosting on Azure Container Apps (detailed)
 
 1. Create Azure Container Registry (ACR)

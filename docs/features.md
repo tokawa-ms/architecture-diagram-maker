@@ -28,8 +28,10 @@
 - `/history` : ローカル履歴の一覧と復元
 - `/settings` : 履歴保持件数と PNG エクスポート倍率の設定
 - `/about` : アプリ概要
+- `/login` : 簡易認証のログイン画面 (USER_NAME / USER_PASS 設定時)
 
 ## 共通機能
 
 - 言語切り替え (日本語 / 英語)
 - `/api/health` によるヘルスチェック
+- USER_NAME / USER_PASS を設定した場合の簡易ログイン
