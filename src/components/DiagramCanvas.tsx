@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { DiagramElement, DiagramLinePoint } from "@/lib/types";
+import type { ArrowEnds, DiagramElement, DiagramLinePoint } from "@/lib/types";
 
 interface DiagramCanvasProps {
   elements: DiagramElement[];
@@ -13,7 +13,7 @@ interface DiagramCanvasProps {
   activeTool?: {
     type: DiagramElement["type"];
     style?: "solid" | "dashed";
-    arrowEnds?: "end" | "both";
+    arrowEnds?: ArrowEnds;
     lineMode?: "straight" | "polyline";
   } | null;
   previewLabels?: {
@@ -25,7 +25,7 @@ interface DiagramCanvasProps {
   onCreateElement?: (args: {
     type: DiagramElement["type"];
     style?: "solid" | "dashed";
-    arrowEnds?: "end" | "both";
+    arrowEnds?: ArrowEnds;
     startX: number;
     startY: number;
     endX: number;
@@ -148,11 +148,14 @@ const Arrow = ({
     return "0";
   }, [element]);
 
-  const arrowHead = element.type === "arrow";
+  const resolvedArrowEnds = (() => {
+    const arrowConfig = (element as unknown as { arrowEnds?: "none" | "start" | "end" | "both" })
+      .arrowEnds;
+    if (arrowConfig) return arrowConfig;
+    return element.type === "arrow" ? "end" : "none";
+  })();
+  const hasArrowHead = resolvedArrowEnds !== "none";
   const markerId = `arrowhead-${element.id}`;
-  const arrowEnds = arrowHead
-    ? ((element as unknown as { arrowEnds?: "end" | "both" }).arrowEnds ?? "end")
-    : "end";
 
   const [dragHandle, setDragHandle] = useState<null | {
     which: "start" | "end";
@@ -482,16 +485,20 @@ const Arrow = ({
         strokeWidth={element.strokeWidth}
         strokeDasharray={strokeDasharray}
         markerEnd={
-          arrowHead && (arrowEnds === "end" || arrowEnds === "both")
+          hasArrowHead && (resolvedArrowEnds === "end" || resolvedArrowEnds === "both")
             ? `url(#${markerId})`
             : undefined
         }
-        markerStart={arrowHead && arrowEnds === "both" ? `url(#${markerId})` : undefined}
+        markerStart={
+          hasArrowHead && (resolvedArrowEnds === "start" || resolvedArrowEnds === "both")
+            ? `url(#${markerId})`
+            : undefined
+        }
         strokeLinecap="round"
         fill="none"
         pointerEvents="none"
       />
-      {arrowHead && (
+      {hasArrowHead && (
         <defs>
           <marker
             id={markerId}
