@@ -503,6 +503,49 @@ export default function EditorPage() {
     [diagram.elements, selectedIds],
   );
   const selectedElement = selectedElements.length === 1 ? selectedElements[0] : null;
+  const selectedLineElements = useMemo(
+    () =>
+      selectedElements.filter(
+        (element) => element.type === "arrow" || element.type === "line",
+      ) as Array<Extract<DiagramElement, { type: "arrow" | "line" }>>,
+    [selectedElements],
+  );
+  const hasLineSelection = selectedLineElements.length > 0;
+
+  const resolveArrowEnds = (element: DiagramElement): ArrowEnds => {
+    const arrowConfig = (element as { arrowEnds?: ArrowEnds }).arrowEnds;
+    if (arrowConfig) return arrowConfig;
+    return element.type === "arrow" ? "end" : "none";
+  };
+
+  const toArrowEnds = (startEnabled: boolean, endEnabled: boolean): ArrowEnds => {
+    if (startEnabled && endEnabled) return "both";
+    if (startEnabled) return "start";
+    if (endEnabled) return "end";
+    return "none";
+  };
+
+  const getCommonValue = <T, V>(items: T[], selector: (item: T) => V) => {
+    if (items.length === 0) return null;
+    const first = selector(items[0]);
+    for (let i = 1; i < items.length; i += 1) {
+      if (selector(items[i]) !== first) return null;
+    }
+    return first;
+  };
+
+  const commonLineStyle = getCommonValue(
+    selectedLineElements,
+    (element) => (element.style ?? "solid") as ArrowStyle,
+  );
+  const commonArrowStart = getCommonValue(selectedLineElements, (element) => {
+    const ends = resolveArrowEnds(element);
+    return ends === "start" || ends === "both";
+  });
+  const commonArrowEnd = getCommonValue(selectedLineElements, (element) => {
+    const ends = resolveArrowEnds(element);
+    return ends === "end" || ends === "both";
+  });
 
   const inspectorLabels = useMemo(
     () => ({
@@ -814,6 +857,26 @@ export default function EditorPage() {
 
   const applySelection = (ids: string[]) => {
     setSelectedIds(resolveSelection(ids));
+  };
+
+  const updateSelectedLineElements = (
+    updater: (
+      element: Extract<DiagramElement, { type: "arrow" | "line" }>,
+    ) => Partial<DiagramArrowElement | DiagramLineElement>,
+  ) => {
+    if (selectedLineElements.length === 0) return;
+    recordHistory();
+    updateElements((elements) =>
+      elements.map((element) => {
+        if (!selectedIds.includes(element.id)) return element;
+        if (element.type !== "arrow" && element.type !== "line") return element;
+        const updates = updater(element);
+        return applyLineUpdates(
+          element,
+          updates as Partial<DiagramArrowElement | DiagramLineElement>,
+        );
+      }),
+    );
   };
 
   useEffect(() => {
@@ -1416,6 +1479,8 @@ export default function EditorPage() {
               ];
         const start = points[0];
         const end = points[points.length - 1];
+        const startDirection = points.length >= 2 ? points[1] : end;
+        const endDirection = points.length >= 2 ? points[points.length - 2] : start;
 
         const style = (element as unknown as { style?: string }).style ?? "solid";
         const strokeWidth = Math.max(1, element.strokeWidth);
@@ -1438,29 +1503,26 @@ export default function EditorPage() {
         }
         ctx.stroke();
 
-        if (element.type === "arrow") {
-          const arrowEnds =
-            (element as unknown as { arrowEnds?: "end" | "both" }).arrowEnds ?? "end";
-          if (arrowEnds === "end" || arrowEnds === "both") {
-            drawArrowhead({
-              ctx,
-              fromX: start.x,
-              fromY: start.y,
-              toX: end.x,
-              toY: end.y,
-              strokeWidth,
-            });
-          }
-          if (arrowEnds === "both") {
-            drawArrowhead({
-              ctx,
-              fromX: end.x,
-              fromY: end.y,
-              toX: start.x,
-              toY: start.y,
-              strokeWidth,
-            });
-          }
+        const arrowEnds = resolveArrowEnds(element);
+        if (arrowEnds === "end" || arrowEnds === "both") {
+          drawArrowhead({
+            ctx,
+            fromX: endDirection.x,
+            fromY: endDirection.y,
+            toX: end.x,
+            toY: end.y,
+            strokeWidth,
+          });
+        }
+        if (arrowEnds === "start" || arrowEnds === "both") {
+          drawArrowhead({
+            ctx,
+            fromX: startDirection.x,
+            fromY: startDirection.y,
+            toX: start.x,
+            toY: start.y,
+            strokeWidth,
+          });
         }
 
         ctx.restore();
@@ -1555,6 +1617,10 @@ export default function EditorPage() {
 
   const canGroup = selectedElements.length >= 2;
   const canUngroup = selectedElements.some((element) => element.groupId);
+  const toggleButtonBase = "rounded-md border px-3 py-2 text-xs font-semibold";
+  const toggleButtonActive = "border-sky-400 bg-sky-100 text-sky-700";
+  const toggleButtonInactive =
+    "border-slate-200 bg-white text-slate-600 hover:border-sky-300 hover:text-slate-900";
 
   return (
     <div
@@ -1890,6 +1956,82 @@ export default function EditorPage() {
                   {messages.toolUngroup}
                 </button>
               </div>
+              {hasLineSelection && (
+                <div className="mb-3 grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2">
+                  <div className="text-[11px] font-semibold text-slate-500">
+                    {messages.contextLineStyle}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      className={`${toggleButtonBase} ${
+                        commonLineStyle === "solid"
+                          ? toggleButtonActive
+                          : toggleButtonInactive
+                      }`}
+                      onClick={() =>
+                        updateSelectedLineElements(() => ({ style: "solid" }))
+                      }
+                    >
+                      {messages.toolLineSolid}
+                    </button>
+                    <button
+                      type="button"
+                      className={`${toggleButtonBase} ${
+                        commonLineStyle === "dashed"
+                          ? toggleButtonActive
+                          : toggleButtonInactive
+                      }`}
+                      onClick={() =>
+                        updateSelectedLineElements(() => ({ style: "dashed" }))
+                      }
+                    >
+                      {messages.toolLineDashed}
+                    </button>
+                  </div>
+                  <div className="mt-2 text-[11px] font-semibold text-slate-500">
+                    {messages.contextArrowEnds}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      className={`${toggleButtonBase} ${
+                        commonArrowStart === true
+                          ? toggleButtonActive
+                          : toggleButtonInactive
+                      }`}
+                      onClick={() => {
+                        const nextStart = commonArrowStart === true ? false : true;
+                        updateSelectedLineElements((element) => {
+                          const ends = resolveArrowEnds(element);
+                          const endEnabled = ends === "end" || ends === "both";
+                          return { arrowEnds: toArrowEnds(nextStart, endEnabled) };
+                        });
+                      }}
+                    >
+                      {messages.contextArrowStart}
+                    </button>
+                    <button
+                      type="button"
+                      className={`${toggleButtonBase} ${
+                        commonArrowEnd === true
+                          ? toggleButtonActive
+                          : toggleButtonInactive
+                      }`}
+                      onClick={() => {
+                        const nextEnd = commonArrowEnd === true ? false : true;
+                        updateSelectedLineElements((element) => {
+                          const ends = resolveArrowEnds(element);
+                          const startEnabled = ends === "start" || ends === "both";
+                          return { arrowEnds: toArrowEnds(startEnabled, nextEnd) };
+                        });
+                      }}
+                    >
+                      {messages.contextArrowEnd}
+                    </button>
+                  </div>
+                </div>
+              )}
               <DiagramInspector
                 selected={selectedElement}
                 showTitle={false}

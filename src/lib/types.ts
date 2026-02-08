@@ -2,7 +2,7 @@ export type DiagramElementType = "icon" | "box" | "text" | "arrow" | "line";
 
 export type ArrowStyle = "solid" | "dashed";
 
-export type ArrowEnds = "end" | "both";
+export type ArrowEnds = "none" | "start" | "end" | "both";
 
 export interface DiagramLinePoint {
   x: number;
@@ -70,6 +70,7 @@ export interface DiagramLineElement extends DiagramElementBase {
   stroke: string;
   strokeWidth: number;
   style: ArrowStyle;
+  arrowEnds?: ArrowEnds;
 }
 
 export type DiagramElement =
