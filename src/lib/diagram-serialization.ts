@@ -94,6 +94,19 @@ export const serializeDiagram = (document: DiagramDocument) => {
     ...document,
     elements: document.elements.map((element) => {
       if (!isLineLike(element)) {
+        if (element.type === "box") {
+          return {
+            ...element,
+            labelAlignX: element.labelAlignX ?? "left",
+            labelAlignY: element.labelAlignY ?? "top",
+          } as DiagramElement;
+        }
+        if (element.type === "icon") {
+          return {
+            ...element,
+            labelAlign: element.labelAlign ?? "center",
+          } as DiagramElement;
+        }
         return element;
       }
 
