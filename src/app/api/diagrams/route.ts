@@ -6,6 +6,7 @@ import {
   normalizeDiagramDocument,
   serializeDiagram,
 } from "@/lib/diagram-serialization";
+import { isRequestAuthenticated, isSimpleAuthEnabled } from "@/lib/simple-auth";
 
 export const runtime = "nodejs";
 
@@ -33,7 +34,18 @@ const logCosmosError = (error: unknown, context: string) => {
   });
 };
 
+const enforceSimpleAuth = (request: Request) => {
+  if (!isSimpleAuthEnabled()) return null;
+  if (isRequestAuthenticated(request)) return null;
+  return NextResponse.json(
+    { message: "Authentication required." },
+    { status: 401 },
+  );
+};
+
 export async function GET(request: Request) {
+  const authError = enforceSimpleAuth(request);
+  if (authError) return authError;
   const container = getCosmosContainer();
   if (!container) {
     return storageNotConfigured();
@@ -85,6 +97,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const authError = enforceSimpleAuth(request);
+  if (authError) return authError;
   const container = getCosmosContainer();
   if (!container) {
     return storageNotConfigured();
@@ -123,6 +137,8 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const authError = enforceSimpleAuth(request);
+  if (authError) return authError;
   const container = getCosmosContainer();
   if (!container) {
     return storageNotConfigured();

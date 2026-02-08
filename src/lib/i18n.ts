@@ -163,6 +163,13 @@ const messages = {
       "Cosmos DB を設定すると、作成した図をクラウドに保存できます。",
     loadExampleHint: "例として簡易な構成を読み込みます。",
     noSelection: "選択中の要素がありません。",
+    loginTitle: "ログイン",
+    loginSubtitle: "続行するには認証が必要です。",
+    loginUserLabel: "ユーザー名",
+    loginPassLabel: "パスワード",
+    loginAction: "ログイン",
+    loginError: "ユーザー名またはパスワードが正しくありません。",
+    logoutAction: "ログアウト",
   },
   en: {
     appName: "Architecture Diagram Maker",
@@ -322,6 +329,13 @@ const messages = {
     azureHint: "Configure Cosmos DB to save diagrams to the cloud.",
     loadExampleHint: "Load a simple starter layout.",
     noSelection: "No element selected.",
+    loginTitle: "Sign in",
+    loginSubtitle: "Authentication is required to continue.",
+    loginUserLabel: "Username",
+    loginPassLabel: "Password",
+    loginAction: "Sign in",
+    loginError: "The username or password is incorrect.",
+    logoutAction: "Sign out",
   },
 } as const;
 

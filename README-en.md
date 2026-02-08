@@ -95,6 +95,10 @@ Visit `http://localhost:3000/editor` to open the editor.
 - NEXT_PUBLIC_HISTORY_LIMIT: history retention (10-1000)
 - NEXT_PUBLIC_EXPORT_SCALE: PNG export scale (1-8)
 - ICONS_SAMPLE_ENABLED: toggle sample icons
+- USER_NAME: simple auth username
+- USER_PASS: simple auth password
+
+When USER_NAME and USER_PASS are set, the login screen is required and pages/APIs are blocked until authentication succeeds.
 
 ## Docker
 
