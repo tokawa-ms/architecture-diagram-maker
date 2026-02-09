@@ -6,7 +6,7 @@
 [![Node.js](https://img.shields.io/badge/Node.js-20%2B-339933.svg)](https://nodejs.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-App%20Router-black.svg)](https://nextjs.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-Enabled-38bdf8.svg)](https://tailwindcss.com/)
-[![Microsoft Entra ID](https://img.shields.io/badge/Microsoft%20Entra%20ID-MSAL-0067b8.svg)](https://learn.microsoft.com/ja-jp/entra/)
+[![Microsoft Entra ID](https://img.shields.io/badge/Microsoft%20Entra%20ID-MSAL-0067b8.svg)](https://learn.microsoft.com/entra/)
 
 アーキテクチャダイアグラムを素早く作成し、JSON で保存できる軽量エディターです。ローカル保存に加えて Azure Cosmos DB を有効化するとクラウド保存も利用できます。
 
