@@ -1,10 +1,13 @@
+import { Suspense } from "react";
 import RequireAuth from "@/components/RequireAuth";
 import ProtectedHome from "./protected/page";
 
 export default function Page() {
   return (
     <RequireAuth>
-      <ProtectedHome />
+      <Suspense>
+        <ProtectedHome />
+      </Suspense>
     </RequireAuth>
   );
 }
