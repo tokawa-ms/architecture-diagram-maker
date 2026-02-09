@@ -16,14 +16,98 @@ const STORAGE_DRAFT_KEY = "architecture-diagram:draft";
 const HISTORY_INDEX_KEY = "architecture-diagram:history:index";
 const HISTORY_ENTRY_PREFIX = "architecture-diagram:history:entry:";
 
-export const toStorageKey = (id: string) => `${STORAGE_PREFIX}${id}`;
-const toHistoryEntryKey = (id: string) => `${HISTORY_ENTRY_PREFIX}${id}`;
+/**
+ * Build a user-scoped storage key prefix.
+ * When MSAL is active the email is used to namespace all localStorage keys
+ * so that different users on the same browser never see each other's data.
+ */
+const userPrefix = (): string => {
+  if (currentUserEmail) {
+    return `[${currentUserEmail}]`;
+  }
+  return "";
+};
+
+const storageIndexKey = () => `${userPrefix()}${STORAGE_INDEX_KEY}`;
+const storageDocKey = (id: string) => `${userPrefix()}${STORAGE_PREFIX}${id}`;
+const storageDraftKey = () => `${userPrefix()}${STORAGE_DRAFT_KEY}`;
+const historyIndexKey = () => `${userPrefix()}${HISTORY_INDEX_KEY}`;
+const historyEntryKey = (id: string) => `${userPrefix()}${HISTORY_ENTRY_PREFIX}${id}`;
+
+export const toStorageKey = (id: string) => storageDocKey(id);
+
+/** Name of the cookie set by SimpleAuth login containing the virtual email. */
+const SIMPLE_AUTH_EMAIL_COOKIE = "simple_auth_email";
+/** Fixed virtual email for completely unauthenticated users. */
+const ANONYMOUS_VIRTUAL_EMAIL = "anonymous@anonymous.local";
+
+/**
+ * Read a cookie value by name from `document.cookie`.
+ * Returns null if not found or running server-side.
+ */
+const readCookie = (name: string): string | null => {
+  if (typeof document === "undefined") return null;
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = document.cookie.match(
+    new RegExp(`(?:^|;\\s*)${escapedName}=([^;]*)`)
+  );
+  return match ? decodeURIComponent(match[1]) : null;
+};
+
+/**
+ * Whether the current user is logged in via SimpleAuth.
+ * Checks for the presence of the `simple_auth_email` cookie.
+ */
+export const isSimpleAuthLoggedIn = (): boolean => {
+  return readCookie(SIMPLE_AUTH_EMAIL_COOKIE) !== null;
+};
+
+/**
+ * Resolve the virtual user email for client-side use.
+ *
+ * Priority:
+
+ *  1. Explicit MSAL email (passed as argument)
+ *  2. `simple_auth_email` cookie (set by SimpleAuth login)
+ *  3. `anonymous@anonymous.local` fallback
+ *
+ * Uses RFC 2606 reserved domains (.local) for non-MSAL cases so
+ * virtual emails can never collide with real Entra ID addresses.
+ */
+export const resolveVirtualEmail = (msalEmail: string | null): string => {
+  if (msalEmail) return msalEmail;
+  const cookieEmail = readCookie(SIMPLE_AUTH_EMAIL_COOKIE);
+  if (cookieEmail) return cookieEmail;
+  return ANONYMOUS_VIRTUAL_EMAIL;
+};
+
+/**
+ * Module-level holder for the current user's email (real or virtual).
+ * Set by the client on page load so that localStorage keys are scoped.
+ */
+let currentUserEmail: string | null = null;
+
+/**
+ * Module-level holder for the current MSAL ID token.
+ * Used to authenticate API requests via the Authorization header.
+ */
+let currentMsalIdToken: string | null = null;
+
+export const setCurrentUserEmail = (email: string | null) => {
+  currentUserEmail = email;
+};
+
+export const setCurrentMsalIdToken = (token: string | null) => {
+  currentMsalIdToken = token;
+};
+
+export const getCurrentUserEmail = () => currentUserEmail;
 
 const readIndex = (): StoredDiagramSummary[] => {
   if (typeof window === "undefined") {
     return [];
   }
-  const raw = window.localStorage.getItem(STORAGE_INDEX_KEY);
+  const raw = window.localStorage.getItem(storageIndexKey());
   if (!raw) {
     return [];
   }
@@ -39,14 +123,14 @@ const writeIndex = (items: StoredDiagramSummary[]) => {
   if (typeof window === "undefined") {
     return;
   }
-  window.localStorage.setItem(STORAGE_INDEX_KEY, JSON.stringify(items));
+  window.localStorage.setItem(storageIndexKey(), JSON.stringify(items));
 };
 
 const readHistoryIndex = (): DiagramHistoryEntrySummary[] => {
   if (typeof window === "undefined") {
     return [];
   }
-  const raw = window.localStorage.getItem(HISTORY_INDEX_KEY);
+  const raw = window.localStorage.getItem(historyIndexKey());
   if (!raw) {
     return [];
   }
@@ -62,7 +146,7 @@ const writeHistoryIndex = (items: DiagramHistoryEntrySummary[]) => {
   if (typeof window === "undefined") {
     return;
   }
-  window.localStorage.setItem(HISTORY_INDEX_KEY, JSON.stringify(items));
+  window.localStorage.setItem(historyIndexKey(), JSON.stringify(items));
 };
 
 const listStoredDiagramsLocal = (): StoredDiagramSummary[] => {
@@ -81,7 +165,7 @@ export const loadHistoryEntry = (id: string): DiagramDocument | null => {
   if (typeof window === "undefined") {
     return null;
   }
-  const raw = window.localStorage.getItem(toHistoryEntryKey(id));
+  const raw = window.localStorage.getItem(historyEntryKey(id));
   if (!raw) {
     return null;
   }
@@ -121,7 +205,7 @@ export const appendHistoryEntry = (document: DiagramDocument, limit: number) => 
   };
   try {
     window.localStorage.setItem(
-      toHistoryEntryKey(entryId),
+      historyEntryKey(entryId),
       JSON.stringify(serializeDiagram(document)),
     );
   } catch (error) {
@@ -134,7 +218,7 @@ export const appendHistoryEntry = (document: DiagramDocument, limit: number) => 
   const removed = nextIndex.slice(trimmed.length);
   writeHistoryIndex(trimmed);
   for (const removedEntry of removed) {
-    window.localStorage.removeItem(toHistoryEntryKey(removedEntry.id));
+    window.localStorage.removeItem(historyEntryKey(removedEntry.id));
   }
 };
 
@@ -181,7 +265,11 @@ const deleteDiagramLocal = (id: string) => {
 
 const fetchApi = async <T>(input: RequestInfo, init?: RequestInit) => {
   try {
-    const response = await fetch(input, init);
+    const headers = new Headers(init?.headers);
+    if (currentMsalIdToken) {
+      headers.set("Authorization", `Bearer ${currentMsalIdToken}`);
+    }
+    const response = await fetch(input, { ...init, headers });
     if (!response.ok) {
       return null;
     }
@@ -270,7 +358,7 @@ export const loadDraftDiagram = (): DiagramDocument | null => {
   if (typeof window === "undefined") {
     return null;
   }
-  const raw = window.localStorage.getItem(STORAGE_DRAFT_KEY);
+  const raw = window.localStorage.getItem(storageDraftKey());
   if (!raw) {
     return null;
   }
@@ -292,7 +380,7 @@ export const saveDraftDiagram = (document: DiagramDocument) => {
   }
   try {
     window.localStorage.setItem(
-      STORAGE_DRAFT_KEY,
+      storageDraftKey(),
       JSON.stringify(serializeDiagram(document)),
     );
   } catch (error) {

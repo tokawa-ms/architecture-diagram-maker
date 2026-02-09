@@ -2,12 +2,17 @@
 
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
+import MsalAuthGuard from "@/components/MsalAuthGuard";
 import { useLanguage } from "@/components/useLanguage";
+import { useMsalAuth } from "@/components/useMsalAuth";
 import { getMessages } from "@/lib/i18n";
+import { useSimpleAuthLoggedIn } from "@/components/useSimpleAuthLoggedIn";
 
 export default function AboutPage() {
   const language = useLanguage();
   const messages = getMessages(language);
+  const { msalEnabled, email: msalEmail, displayName: msalDisplayName, logout: msalLogout } = useMsalAuth();
+  const simpleAuthLoggedIn = useSimpleAuthLoggedIn();
   const navItems = [
     { href: "/", label: messages.navHome },
     { href: "/editor", label: messages.navEditor },
@@ -18,6 +23,7 @@ export default function AboutPage() {
   ];
 
   return (
+    <MsalAuthGuard>
     <div className="flex min-h-screen flex-col">
       <SiteHeader
         navItems={navItems}
@@ -25,7 +31,8 @@ export default function AboutPage() {
         languageLabel={messages.languageLabel}
         appName={messages.appName}
         tagline={messages.tagline}
-        logoutLabel={messages.logoutAction}
+        logoutLabel={!msalEnabled && simpleAuthLoggedIn ? messages.logoutAction : undefined}
+        msalUser={msalEnabled ? { displayName: msalDisplayName, email: msalEmail, userLabel: messages.msalUserLabel, logoutLabel: messages.msalLogoutAction, onLogout: () => void msalLogout() } : undefined}
       />
       <main className="flex-1">
         <section className="mx-auto flex max-w-4xl flex-col gap-4 px-6 py-12">
@@ -40,5 +47,6 @@ export default function AboutPage() {
       </main>
       <SiteFooter text={messages.footerText} />
     </div>
+    </MsalAuthGuard>
   );
 }

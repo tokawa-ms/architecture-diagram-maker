@@ -3,6 +3,7 @@ import {
   getAuthCookieOptions,
   isSimpleAuthEnabled,
   SIMPLE_AUTH_COOKIE,
+  SIMPLE_AUTH_EMAIL_COOKIE,
 } from "@/lib/simple-auth";
 
 export const runtime = "nodejs";
@@ -31,6 +32,11 @@ export async function POST(request: Request) {
   const response = NextResponse.redirect(url, { status: 303 });
   response.cookies.set(SIMPLE_AUTH_COOKIE, "", {
     ...getAuthCookieOptions(),
+    maxAge: 0,
+  });
+  response.cookies.set(SIMPLE_AUTH_EMAIL_COOKIE, "", {
+    ...getAuthCookieOptions(),
+    httpOnly: false,
     maxAge: 0,
   });
   return response;

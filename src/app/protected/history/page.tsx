@@ -4,7 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
+import MsalAuthGuard from "@/components/MsalAuthGuard";
 import { useLanguage } from "@/components/useLanguage";
+import { useMsalAuth } from "@/components/useMsalAuth";
+import { useSimpleAuthLoggedIn } from "@/components/useSimpleAuthLoggedIn";
 import { getMessages } from "@/lib/i18n";
 import type { DiagramHistoryEntrySummary } from "@/lib/types";
 import {
@@ -18,6 +21,8 @@ export default function HistoryPage() {
   const language = useLanguage();
   const messages = getMessages(language);
   const router = useRouter();
+  const { msalEnabled, email: msalEmail, displayName: msalDisplayName, logout: msalLogout } = useMsalAuth();
+  const simpleAuthLoggedIn = useSimpleAuthLoggedIn();
   const [items, setItems] = useState<DiagramHistoryEntrySummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [rollbackId, setRollbackId] = useState<string | null>(null);
@@ -66,6 +71,7 @@ export default function HistoryPage() {
   };
 
   return (
+    <MsalAuthGuard>
     <div className="flex min-h-screen flex-col">
       <SiteHeader
         navItems={navItems}
@@ -73,7 +79,8 @@ export default function HistoryPage() {
         languageLabel={messages.languageLabel}
         appName={messages.appName}
         tagline={messages.tagline}
-        logoutLabel={messages.logoutAction}
+        logoutLabel={!msalEnabled && simpleAuthLoggedIn ? messages.logoutAction : undefined}
+        msalUser={msalEnabled ? { displayName: msalDisplayName, email: msalEmail, userLabel: messages.msalUserLabel, logoutLabel: messages.msalLogoutAction, onLogout: () => void msalLogout() } : undefined}
       />
       <main className="flex-1">
         <section className="mx-auto flex max-w-5xl flex-col gap-4 px-6 py-12">
@@ -133,5 +140,6 @@ export default function HistoryPage() {
       </main>
       <SiteFooter text={messages.footerText} />
     </div>
+    </MsalAuthGuard>
   );
 }
