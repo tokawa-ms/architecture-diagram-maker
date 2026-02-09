@@ -35,3 +35,4 @@
 - Language switcher (Japanese / English)
 - Health checks via `/api/health`
 - Simple login when USER_NAME / USER_PASS are configured
+- Microsoft Entra ID (MSAL) authentication

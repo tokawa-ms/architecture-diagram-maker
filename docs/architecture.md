@@ -48,10 +48,14 @@ Architecture Diagram Maker は、アーキテクチャ図を素早く作成し�
 - `NEXT_PUBLIC_HISTORY_LIMIT`: 履歴保持件数の初期値
 - `NEXT_PUBLIC_EXPORT_SCALE`: PNG エクスポート倍率の初期値
 - `USER_NAME` / `USER_PASS`: 簡易認証のユーザー名/パスワード (設定時のみ)
+- `NEXT_PUBLIC_AZURE_AD_CLIENT_ID` / `NEXT_PUBLIC_AZURE_AD_TENANT_ID`: Microsoft Entra ID (MSAL) 認証
+- `NEXT_PUBLIC_AZURE_AD_REDIRECT_URI`: MSAL のリダイレクト URI
 - Cosmos DB 用の 3 変数は設定時のみ有効
 
 ## セキュリティと認証
 
+- NEXT_PUBLIC_AZURE_AD_* を設定すると Microsoft Entra ID (MSAL) 認証が有効になり、ID トークンを `/api/diagrams` で検証してメールアドレス単位でデータを分離
+- MSAL 設定時は簡易認証より優先される
 - USER_NAME / USER_PASS を設定すると簡易ログインが有効になり、`/login` と `/api/auth/*` 経由で認証 Cookie を発行
 - ローカル開発: Azure CLI (`az login`) による AAD 認証
 - 本番: Azure Container Apps のマネージド ID を利用

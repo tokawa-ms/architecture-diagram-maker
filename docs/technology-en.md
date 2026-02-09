@@ -18,6 +18,11 @@
 - Next.js Route Handlers (Node.js 20)
 - `/api/health`, `/api/icons`, `/api/diagrams`, `/api/auth/login`, `/api/auth/logout`
 
+## Authentication
+
+- Microsoft Entra ID (MSAL): `@azure/msal-browser`, `@azure/msal-react`
+- Server-side token validation: `jose`
+
 ## Persistence
 
 - Browser local storage by default (saved diagrams, history, drafts)

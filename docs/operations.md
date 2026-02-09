@@ -35,6 +35,15 @@
 - `USER_NAME` / `USER_PASS` を設定すると `/login` でログインが必要になる
 - ログインは `/api/auth/login` で Cookie を発行し、`/api/auth/logout` で破棄する
 
+## Microsoft Entra ID (MSAL) 認証
+
+- Entra ID でアプリ登録 (SPA) を作成し、リダイレクト URI に `http://localhost:3000` と本番 URL を登録
+- 環境変数に次を設定
+  - `NEXT_PUBLIC_AZURE_AD_CLIENT_ID`
+  - `NEXT_PUBLIC_AZURE_AD_TENANT_ID`
+  - `NEXT_PUBLIC_AZURE_AD_REDIRECT_URI`
+- MSAL が有効な場合は `/api/diagrams` へ ID トークンが送信され、メールアドレス単位で Cosmos DB のデータが分離される
+
 ## Azure Container Apps でのホスト手順 (詳細)
 
 1. Azure Container Registry (ACR) を作成

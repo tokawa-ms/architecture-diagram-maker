@@ -48,10 +48,14 @@ Architecture Diagram Maker is a lightweight editor for drafting architecture dia
 - `NEXT_PUBLIC_HISTORY_LIMIT`: default history retention
 - `NEXT_PUBLIC_EXPORT_SCALE`: default PNG export scale
 - `USER_NAME` / `USER_PASS`: simple auth credentials (optional)
+- `NEXT_PUBLIC_AZURE_AD_CLIENT_ID` / `NEXT_PUBLIC_AZURE_AD_TENANT_ID`: Microsoft Entra ID (MSAL) auth
+- `NEXT_PUBLIC_AZURE_AD_REDIRECT_URI`: MSAL redirect URI
 - Cosmos DB env vars are optional and only needed for cloud persistence
 
 ## Security and Auth
 
+- When NEXT_PUBLIC_AZURE_AD_* is set, Microsoft Entra ID (MSAL) auth is enabled and ID tokens are validated in `/api/diagrams` to isolate data per email
+- MSAL configuration takes precedence over simple auth
 - When USER_NAME / USER_PASS are set, simple login is enabled and auth cookies are issued via `/login` and `/api/auth/*`
 - Local dev uses Azure CLI (`az login`) via AAD
 - Production uses managed identity on Azure Container Apps

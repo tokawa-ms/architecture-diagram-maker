@@ -18,6 +18,11 @@
 - Next.js Route Handlers (Node.js 20)
 - `/api/health`, `/api/icons`, `/api/diagrams`, `/api/auth/login`, `/api/auth/logout`
 
+## 認証
+
+- Microsoft Entra ID (MSAL): `@azure/msal-browser`, `@azure/msal-react`
+- サーバー側のトークン検証: `jose`
+
 ## データ保存
 
 - 既定はブラウザのローカルストレージ (保存・履歴・ドラフト)

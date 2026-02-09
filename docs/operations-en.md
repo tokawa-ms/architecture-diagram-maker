@@ -35,6 +35,15 @@
 - Setting `USER_NAME` / `USER_PASS` requires users to log in at `/login`
 - `/api/auth/login` issues the auth cookie and `/api/auth/logout` clears it
 
+## Microsoft Entra ID (MSAL) Auth
+
+- Register a SPA in Entra ID and add redirect URIs for `http://localhost:3000` and your production URL
+- Configure the following environment variables
+  - `NEXT_PUBLIC_AZURE_AD_CLIENT_ID`
+  - `NEXT_PUBLIC_AZURE_AD_TENANT_ID`
+  - `NEXT_PUBLIC_AZURE_AD_REDIRECT_URI`
+- When MSAL is enabled, `/api/diagrams` receives an ID token and isolates Cosmos DB data per email
+
 ## Hosting on Azure Container Apps (detailed)
 
 1. Create Azure Container Registry (ACR)
