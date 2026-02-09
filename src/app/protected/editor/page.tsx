@@ -2,13 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import SiteHeader from "@/components/SiteHeader";
-import SiteFooter from "@/components/SiteFooter";
 import DiagramCanvas from "@/components/DiagramCanvas";
 import DiagramInspector from "@/components/DiagramInspector";
 import DiagramPalette from "@/components/DiagramPalette";
 import DiagramStoragePanel from "@/components/DiagramStoragePanel";
 import DiagramTools from "@/components/DiagramTools";
+import MsalAuthGuard from "@/components/MsalAuthGuard";
 import { useLanguage } from "@/components/useLanguage";
+import { useMsalAuth } from "@/components/useMsalAuth";
+import { useSimpleAuthLoggedIn } from "@/components/useSimpleAuthLoggedIn";
 import { createSampleDiagram } from "@/lib/sample";
 import { getMessages } from "@/lib/i18n";
 import type {
@@ -446,9 +448,12 @@ const loadHtmlToCanvas = async () => {
 export default function EditorPage() {
   const language = useLanguage();
   const messages = getMessages(language);
+  const { msalEnabled, email: msalEmail, displayName: msalDisplayName, logout: msalLogout } = useMsalAuth();
+  const simpleAuthLoggedIn = useSimpleAuthLoggedIn();
   const [diagram, setDiagram] = useState<DiagramDocument>(() =>
     createEmptyDocument(messages.defaultDiagramName),
   );
+
   const [idPrefix, setIdPrefix] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showGrid, setShowGrid] = useState(true);
@@ -1623,8 +1628,9 @@ export default function EditorPage() {
     "border-slate-200 bg-white text-slate-600 hover:border-sky-300 hover:text-slate-900";
 
   return (
+    <MsalAuthGuard>
     <div
-      className="flex min-h-screen flex-col"
+      className="flex h-screen flex-col overflow-hidden"
       onContextMenuCapture={(event) => {
         const target = event.target;
         if (
@@ -1644,10 +1650,21 @@ export default function EditorPage() {
         languageLabel={messages.languageLabel}
         appName={messages.appName}
         tagline={messages.tagline}
-        logoutLabel={messages.logoutAction}
+        logoutLabel={!msalEnabled && simpleAuthLoggedIn ? messages.logoutAction : undefined}
+        msalUser={
+          msalEnabled
+            ? {
+                displayName: msalDisplayName,
+                email: msalEmail,
+                userLabel: messages.msalUserLabel,
+                logoutLabel: messages.msalLogoutAction,
+                onLogout: () => void msalLogout(),
+              }
+            : undefined
+        }
       />
       <main className="flex-1 bg-slate-50">
-        <section className="mx-[10px] flex flex-1 flex-col gap-6 px-0 py-10">
+        <section className="mx-[10px] flex flex-1 flex-col gap-4 px-0 py-2">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-end">
             <div className="flex flex-1 flex-col gap-3 lg:flex-row lg:items-center lg:justify-end">
               <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs text-slate-600">
@@ -1813,8 +1830,6 @@ export default function EditorPage() {
           </div>
         </section>
       </main>
-      <SiteFooter text={messages.footerText} />
-
       {storageModalOpen && (
         <div
           className="fixed inset-0 z-[60] bg-slate-900/30 p-[10px]"
@@ -2048,5 +2063,6 @@ export default function EditorPage() {
         </div>
       )}
     </div>
+    </MsalAuthGuard>
   );
 }

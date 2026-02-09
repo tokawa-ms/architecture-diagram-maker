@@ -11,6 +11,8 @@
   "dependencies": {
     "@azure/cosmos": "^4.2.0",
     "@azure/identity": "^4.2.1",
+    "@azure/msal-browser": "^5.1.0",
+    "@azure/msal-react": "^5.0.3",
     "html2canvas": "^1.4.1",
     "next": "16.1.6",
     "react": "19.2.3",

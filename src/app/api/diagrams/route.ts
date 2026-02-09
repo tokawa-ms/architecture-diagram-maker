@@ -6,7 +6,8 @@ import {
   normalizeDiagramDocument,
   serializeDiagram,
 } from "@/lib/diagram-serialization";
-import { isRequestAuthenticated, isSimpleAuthEnabled } from "@/lib/simple-auth";
+import { isRequestAuthenticated, isSimpleAuthEnabled, getSimpleAuthVirtualEmail, ANONYMOUS_VIRTUAL_EMAIL } from "@/lib/simple-auth";
+import { isMsalConfigured } from "@/lib/msal-config";
 
 export const runtime = "nodejs";
 
@@ -34,7 +35,44 @@ const logCosmosError = (error: unknown, context: string) => {
   });
 };
 
-const enforceSimpleAuth = (request: Request) => {
+/**
+ * Resolve the user email for data isolation.
+ *
+ * - MSAL → real email from X-User-Email header
+ * - SimpleAuth → virtual email derived from USER_NAME env var
+ *   (e.g. "microsoft@simple-auth.local")
+ * - No auth → fixed anonymous virtual email
+ *   ("anonymous@anonymous.local")
+ *
+ * Uses RFC 2606 reserved domains (.local) for non-MSAL cases so
+ * virtual emails can never collide with real Entra ID addresses.
+ */
+const resolveUserEmail = (request: Request): string => {
+  if (isMsalConfigured()) {
+    const email = request.headers.get("X-User-Email");
+    return email?.trim().toLowerCase() || ANONYMOUS_VIRTUAL_EMAIL;
+  }
+  if (isSimpleAuthEnabled()) {
+    return getSimpleAuthVirtualEmail() ?? ANONYMOUS_VIRTUAL_EMAIL;
+  }
+  return ANONYMOUS_VIRTUAL_EMAIL;
+};
+
+const enforceAuth = (request: Request) => {
+  // When MSAL is configured, we rely on client-side MSAL auth and the
+  // X-User-Email header.  Simple-auth cookie check is skipped.
+  if (isMsalConfigured()) {
+    const email = request.headers.get("X-User-Email");
+    if (!email || !email.trim()) {
+      return NextResponse.json(
+        { message: "Authentication required. X-User-Email header missing." },
+        { status: 401 },
+      );
+    }
+    return null;
+  }
+
+  // Fallback: simple auth
   if (!isSimpleAuthEnabled()) return null;
   if (isRequestAuthenticated(request)) return null;
   return NextResponse.json(
@@ -44,19 +82,24 @@ const enforceSimpleAuth = (request: Request) => {
 };
 
 export async function GET(request: Request) {
-  const authError = enforceSimpleAuth(request);
+  const authError = enforceAuth(request);
   if (authError) return authError;
   const container = getCosmosContainer();
   if (!container) {
     return storageNotConfigured();
   }
 
+  const userEmail = resolveUserEmail(request);
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
   if (id) {
     try {
-      const { resource } = await container.item(id, id).read<DiagramDocument>();
+      const { resource } = await container.item(id, id).read<DiagramDocument & { userEmail?: string }>();
       if (!resource || !isDiagramDocument(resource)) {
+        return NextResponse.json({ message: "Diagram not found." }, { status: 404 });
+      }
+      // Verify the document belongs to this user
+      if (resource.userEmail !== userEmail) {
         return NextResponse.json({ message: "Diagram not found." }, { status: 404 });
       }
       return NextResponse.json({
@@ -76,12 +119,14 @@ export async function GET(request: Request) {
   }
 
   try {
+    // Only return diagrams belonging to this user
+    const querySpec = {
+      query:
+        "SELECT c.id, c.name, c.updatedAt FROM c WHERE c.userEmail = @email",
+      parameters: [{ name: "@email", value: userEmail }],
+    };
     const { resources } = await container.items
-      .query<StoredDiagramSummary>(
-        {
-          query: "SELECT c.id, c.name, c.updatedAt FROM c",
-        }
-      )
+      .query<StoredDiagramSummary>(querySpec)
       .fetchAll();
     const items = (resources ?? []).sort((a, b) =>
       new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
@@ -97,12 +142,14 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const authError = enforceSimpleAuth(request);
+  const authError = enforceAuth(request);
   if (authError) return authError;
   const container = getCosmosContainer();
   if (!container) {
     return storageNotConfigured();
   }
+
+  const userEmail = resolveUserEmail(request);
 
   let payload: unknown;
   try {
@@ -125,7 +172,9 @@ export async function POST(request: Request) {
 
   try {
     const serialized = serializeDiagram(document);
-    await container.items.upsert(serialized);
+    // Always attach user email for data isolation
+    const toStore = { ...serialized, userEmail };
+    await container.items.upsert(toStore);
     return NextResponse.json({ ok: true });
   } catch (error) {
     logCosmosError(error, "upsert");
@@ -137,7 +186,7 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const authError = enforceSimpleAuth(request);
+  const authError = enforceAuth(request);
   if (authError) return authError;
   const container = getCosmosContainer();
   if (!container) {
@@ -153,7 +202,14 @@ export async function DELETE(request: Request) {
     );
   }
 
+  const userEmail = resolveUserEmail(request);
+
   try {
+    // Verify ownership before deleting
+    const { resource } = await container.item(id, id).read<{ userEmail?: string }>();
+    if (!resource || resource.userEmail !== userEmail) {
+      return NextResponse.json({ message: "Diagram not found." }, { status: 404 });
+    }
     await container.item(id, id).delete();
     return NextResponse.json({ ok: true });
   } catch (error) {
