@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import {
+  buildSimpleAuthVirtualEmail,
   getAuthCookieOptions,
   getSimpleAuthToken,
   isSimpleAuthEnabled,
   SIMPLE_AUTH_COOKIE,
+  SIMPLE_AUTH_EMAIL_COOKIE,
 } from "@/lib/simple-auth";
 
 export const runtime = "nodejs";
@@ -55,5 +57,10 @@ export async function POST(request: Request) {
     status: 303,
   });
   response.cookies.set(SIMPLE_AUTH_COOKIE, token, getAuthCookieOptions());
+  // Set the virtual email cookie (readable by client JS for localStorage scoping).
+  response.cookies.set(SIMPLE_AUTH_EMAIL_COOKIE, buildSimpleAuthVirtualEmail(username), {
+    ...getAuthCookieOptions(),
+    httpOnly: false, // client needs to read this
+  });
   return response;
 }

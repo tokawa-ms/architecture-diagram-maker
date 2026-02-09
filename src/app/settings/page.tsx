@@ -1,10 +1,13 @@
+import { Suspense } from "react";
 import RequireAuth from "@/components/RequireAuth";
 import SettingsPage from "../protected/settings/page";
 
 export default function Page() {
   return (
     <RequireAuth>
-      <SettingsPage />
+      <Suspense>
+        <SettingsPage />
+      </Suspense>
     </RequireAuth>
   );
 }

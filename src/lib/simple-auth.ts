@@ -1,10 +1,33 @@
 import crypto from "node:crypto";
 
 export const SIMPLE_AUTH_COOKIE = "simple_auth";
+export const SIMPLE_AUTH_EMAIL_COOKIE = "simple_auth_email";
 const SIMPLE_AUTH_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
+
+/** Domain suffix for SimpleAuth virtual emails (RFC 2606 reserved). */
+const SIMPLE_AUTH_DOMAIN = "simple-auth.local";
+/** Fixed virtual email for completely unauthenticated (no-auth) users. */
+export const ANONYMOUS_VIRTUAL_EMAIL = "anonymous@anonymous.local";
 
 export const isSimpleAuthEnabled = () => {
   return Boolean(process.env.USER_NAME && process.env.USER_PASS);
+};
+
+/**
+ * Build a virtual email address for a SimpleAuth user.
+ * Uses an RFC 2606 reserved domain so it can never collide with real emails.
+ */
+export const buildSimpleAuthVirtualEmail = (username: string): string =>
+  `${username.toLowerCase()}@${SIMPLE_AUTH_DOMAIN}`;
+
+/**
+ * Return the virtual email for the current SimpleAuth user
+ * (derived from the USER_NAME env var), or null if SimpleAuth is not enabled.
+ */
+export const getSimpleAuthVirtualEmail = (): string | null => {
+  if (!isSimpleAuthEnabled()) return null;
+  const username = process.env.USER_NAME ?? "user";
+  return buildSimpleAuthVirtualEmail(username);
 };
 
 export const getSimpleAuthToken = () => {

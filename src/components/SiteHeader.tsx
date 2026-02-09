@@ -14,6 +14,14 @@ interface SiteHeaderProps {
   appName: string;
   tagline: string;
   logoutLabel?: string;
+  /** MSAL-specific props (optional) */
+  msalUser?: {
+    displayName: string | null;
+    email: string | null;
+    userLabel: string;
+    logoutLabel: string;
+    onLogout: () => void;
+  };
 }
 
 export default function SiteHeader({
@@ -23,12 +31,13 @@ export default function SiteHeader({
   appName,
   tagline,
   logoutLabel,
+  msalUser,
 }: SiteHeaderProps) {
   const withLang = (href: string) => `${href}?lang=${currentLanguage}`;
 
   return (
-    <header className="border-b border-slate-200 bg-white/90 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-6 sm:flex-row sm:items-center sm:justify-between">
+    <header className="border-b border-slate-200 bg-white/90 backdrop-blur" style={{ padding: "8px 24px" }}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <Link href={withLang("/")} className="text-xl font-semibold text-slate-900">
             {appName}
@@ -47,7 +56,27 @@ export default function SiteHeader({
               </Link>
             ))}
           </nav>
-          {logoutLabel && (
+          {/* MSAL user info & logout */}
+          {msalUser && msalUser.email && (
+            <div className="flex items-center gap-2">
+              <Link
+                href={withLang("/account")}
+                className="text-xs text-slate-500 transition hover:text-sky-600"
+                title={msalUser.email}
+              >
+                {msalUser.userLabel}: <span className="font-medium text-slate-700">{msalUser.displayName ?? msalUser.email}</span>
+              </Link>
+              <button
+                type="button"
+                className="rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900"
+                onClick={msalUser.onLogout}
+              >
+                {msalUser.logoutLabel}
+              </button>
+            </div>
+          )}
+          {/* Simple auth logout */}
+          {!msalUser && logoutLabel && (
             <form action="/api/auth/logout" method="POST">
               <input type="hidden" name="lang" value={currentLanguage} />
               <button
