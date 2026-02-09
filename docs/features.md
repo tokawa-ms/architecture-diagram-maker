@@ -35,3 +35,4 @@
 - 言語切り替え (日本語 / 英語)
 - `/api/health` によるヘルスチェック
 - USER_NAME / USER_PASS を設定した場合の簡易ログイン
+- Microsoft Entra ID (MSAL) 認証によるログイン
