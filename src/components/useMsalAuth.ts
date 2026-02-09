@@ -21,6 +21,8 @@ export interface MsalAuthState {
   email: string | null;
   /** Tenant ID of the logged-in user (if any). */
   tenantId: string | null;
+  /** The raw MSAL ID token for server-side validation. */
+  idToken: string | null;
   /** Trigger an interactive MSAL login (redirect). */
   login: () => Promise<void>;
   /** Trigger MSAL logout (redirect). */
@@ -43,7 +45,7 @@ export const useMsalAuth = (): MsalAuthState => {
   // values.  We guard actual usage with the `msalEnabled` flag.
   let isAuthenticated = false;
   let inProgress = false;
-  let accounts: Array<{ name?: string; username?: string; tenantId?: string }> = [];
+  let accounts: Array<{ name?: string; username?: string; tenantId?: string; idToken?: string }> = [];
 
   // We need to try/catch because if MsalProvider is not in the tree, the
   // hooks will throw.
@@ -76,6 +78,11 @@ export const useMsalAuth = (): MsalAuthState => {
     [msalEnabled, account],
   );
 
+  const idToken = useMemo(
+    () => (msalEnabled && account?.idToken ? account.idToken : null),
+    [msalEnabled, account],
+  );
+
   const login = useCallback(async () => {
     if (!msalEnabled || !msalInstance) return;
     try {
@@ -101,6 +108,7 @@ export const useMsalAuth = (): MsalAuthState => {
     displayName,
     email,
     tenantId,
+    idToken,
     login,
     logout,
   };
