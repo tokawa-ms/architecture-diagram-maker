@@ -47,8 +47,9 @@ const ANONYMOUS_VIRTUAL_EMAIL = "anonymous@anonymous.local";
  */
 const readCookie = (name: string): string | null => {
   if (typeof document === "undefined") return null;
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const match = document.cookie.match(
-    new RegExp(`(?:^|;\\s*)${name}=([^;]*)`)
+    new RegExp(`(?:^|;\\s*)${escapedName}=([^;]*)`)
   );
   return match ? decodeURIComponent(match[1]) : null;
 };
@@ -82,13 +83,22 @@ export const resolveVirtualEmail = (msalEmail: string | null): string => {
 
 /**
  * Module-level holder for the current user's email (real or virtual).
- * Set by the client on page load so that every API call automatically
- * includes the user email header, and localStorage keys are scoped.
+ * Set by the client on page load so that localStorage keys are scoped.
  */
 let currentUserEmail: string | null = null;
 
+/**
+ * Module-level holder for the current MSAL ID token.
+ * Used to authenticate API requests via the Authorization header.
+ */
+let currentMsalIdToken: string | null = null;
+
 export const setCurrentUserEmail = (email: string | null) => {
   currentUserEmail = email;
+};
+
+export const setCurrentMsalIdToken = (token: string | null) => {
+  currentMsalIdToken = token;
 };
 
 export const getCurrentUserEmail = () => currentUserEmail;
@@ -256,8 +266,8 @@ const deleteDiagramLocal = (id: string) => {
 const fetchApi = async <T>(input: RequestInfo, init?: RequestInit) => {
   try {
     const headers = new Headers(init?.headers);
-    if (currentUserEmail) {
-      headers.set("X-User-Email", currentUserEmail);
+    if (currentMsalIdToken) {
+      headers.set("Authorization", `Bearer ${currentMsalIdToken}`);
     }
     const response = await fetch(input, { ...init, headers });
     if (!response.ok) {

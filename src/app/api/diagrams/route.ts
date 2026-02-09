@@ -8,6 +8,7 @@ import {
 } from "@/lib/diagram-serialization";
 import { isRequestAuthenticated, isSimpleAuthEnabled, getSimpleAuthVirtualEmail, ANONYMOUS_VIRTUAL_EMAIL } from "@/lib/simple-auth";
 import { isMsalConfigured } from "@/lib/msal-config";
+import { validateMsalToken } from "@/lib/msal-validate";
 
 export const runtime = "nodejs";
 
@@ -36,9 +37,20 @@ const logCosmosError = (error: unknown, context: string) => {
 };
 
 /**
+ * Extract and validate the Bearer token from the Authorization header.
+ * Returns the raw token string or null.
+ */
+const extractBearerToken = (request: Request): string | null => {
+  const authHeader = request.headers.get("Authorization");
+  if (!authHeader) return null;
+  const match = authHeader.match(/^Bearer\s+(\S+)$/i);
+  return match ? match[1] : null;
+};
+
+/**
  * Resolve the user email for data isolation.
  *
- * - MSAL → real email from X-User-Email header
+ * - MSAL → email extracted from a server-side validated ID token
  * - SimpleAuth → virtual email derived from USER_NAME env var
  *   (e.g. "microsoft@simple-auth.local")
  * - No auth → fixed anonymous virtual email
@@ -47,10 +59,16 @@ const logCosmosError = (error: unknown, context: string) => {
  * Uses RFC 2606 reserved domains (.local) for non-MSAL cases so
  * virtual emails can never collide with real Entra ID addresses.
  */
-const resolveUserEmail = (request: Request): string => {
+const resolveUserEmail = async (request: Request): Promise<string> => {
   if (isMsalConfigured()) {
-    const email = request.headers.get("X-User-Email");
-    return email?.trim().toLowerCase() || ANONYMOUS_VIRTUAL_EMAIL;
+    const token = extractBearerToken(request);
+    if (token) {
+      const claims = await validateMsalToken(token);
+      if (claims?.email) {
+        return claims.email;
+      }
+    }
+    return ANONYMOUS_VIRTUAL_EMAIL;
   }
   if (isSimpleAuthEnabled()) {
     return getSimpleAuthVirtualEmail() ?? ANONYMOUS_VIRTUAL_EMAIL;
@@ -58,14 +76,21 @@ const resolveUserEmail = (request: Request): string => {
   return ANONYMOUS_VIRTUAL_EMAIL;
 };
 
-const enforceAuth = (request: Request) => {
-  // When MSAL is configured, we rely on client-side MSAL auth and the
-  // X-User-Email header.  Simple-auth cookie check is skipped.
+const enforceAuth = async (request: Request) => {
+  // When MSAL is configured, validate the ID token server-side.
+  // This prevents X-User-Email header spoofing attacks.
   if (isMsalConfigured()) {
-    const email = request.headers.get("X-User-Email");
-    if (!email || !email.trim()) {
+    const token = extractBearerToken(request);
+    if (!token) {
       return NextResponse.json(
-        { message: "Authentication required. X-User-Email header missing." },
+        { message: "Authentication required. Bearer token missing." },
+        { status: 401 },
+      );
+    }
+    const claims = await validateMsalToken(token);
+    if (!claims) {
+      return NextResponse.json(
+        { message: "Authentication failed. Invalid or expired token." },
         { status: 401 },
       );
     }
@@ -82,14 +107,14 @@ const enforceAuth = (request: Request) => {
 };
 
 export async function GET(request: Request) {
-  const authError = enforceAuth(request);
+  const authError = await enforceAuth(request);
   if (authError) return authError;
   const container = getCosmosContainer();
   if (!container) {
     return storageNotConfigured();
   }
 
-  const userEmail = resolveUserEmail(request);
+  const userEmail = await resolveUserEmail(request);
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
   if (id) {
@@ -142,14 +167,14 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const authError = enforceAuth(request);
+  const authError = await enforceAuth(request);
   if (authError) return authError;
   const container = getCosmosContainer();
   if (!container) {
     return storageNotConfigured();
   }
 
-  const userEmail = resolveUserEmail(request);
+  const userEmail = await resolveUserEmail(request);
 
   let payload: unknown;
   try {
@@ -186,7 +211,7 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const authError = enforceAuth(request);
+  const authError = await enforceAuth(request);
   if (authError) return authError;
   const container = getCosmosContainer();
   if (!container) {
@@ -202,7 +227,7 @@ export async function DELETE(request: Request) {
     );
   }
 
-  const userEmail = resolveUserEmail(request);
+  const userEmail = await resolveUserEmail(request);
 
   try {
     // Verify ownership before deleting
