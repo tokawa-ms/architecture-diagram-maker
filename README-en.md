@@ -6,6 +6,7 @@
 [![Node.js](https://img.shields.io/badge/Node.js-20%2B-339933.svg)](https://nodejs.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-App%20Router-black.svg)](https://nextjs.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-Enabled-38bdf8.svg)](https://tailwindcss.com/)
+[![Microsoft Entra ID](https://img.shields.io/badge/Microsoft%20Entra%20ID-MSAL-0067b8.svg)](https://learn.microsoft.com/entra/)
 
 A lightweight editor for quickly drafting architecture diagrams and saving them as JSON. In addition to local storage, you can enable Azure Cosmos DB for cloud storage.
 
@@ -39,6 +40,7 @@ A lightweight editor for quickly drafting architecture diagrams and saving them 
 - Auto-save history snapshots and restore
 - Configure history retention and PNG export scale in settings
 - Simple login screen when USER_NAME / USER_PASS are set
+- Microsoft Entra ID (MSAL) authentication (optional)
 
 ## Docs
 
@@ -98,8 +100,12 @@ Visit `http://localhost:3000/editor` to open the editor.
 - ICONS_SAMPLE_ENABLED: toggle sample icons
 - USER_NAME: simple auth username
 - USER_PASS: simple auth password
+- NEXT_PUBLIC_AZURE_AD_CLIENT_ID: Entra ID app client ID
+- NEXT_PUBLIC_AZURE_AD_TENANT_ID: Entra ID tenant ID
+- NEXT_PUBLIC_AZURE_AD_REDIRECT_URI: MSAL redirect URI
 
 When USER_NAME and USER_PASS are set, the `/login` screen is required and pages/APIs are blocked until authentication succeeds.
+When NEXT_PUBLIC_AZURE_AD_* is configured, Microsoft Entra ID (MSAL) auth is enabled and takes precedence over simple auth.
 
 ## Docker
 
