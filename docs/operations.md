@@ -30,6 +30,11 @@
   - `NEXT_PUBLIC_EXPORT_SCALE` (1〜8)
 - 変更した値はローカルストレージに保存
 
+## 簡易認証
+
+- `USER_NAME` / `USER_PASS` を設定すると `/login` でログインが必要になる
+- ログインは `/api/auth/login` で Cookie を発行し、`/api/auth/logout` で破棄する
+
 ## Azure Container Apps でのホスト手順 (詳細)
 
 1. Azure Container Registry (ACR) を作成

@@ -13,7 +13,7 @@ flowchart LR
 
   subgraph App[Next.js App Router]
     Pages[Pages]
-    API[Route Handlers\n/api/health\n/api/icons\n/api/diagrams]
+    API[Route Handlers\n/api/health\n/api/icons\n/api/diagrams\n/api/auth/login\n/api/auth/logout]
   end
 
   subgraph Azure[Azure]

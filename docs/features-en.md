@@ -28,8 +28,10 @@
 - `/history`: local history list and restore
 - `/settings`: history retention and PNG export scale settings
 - `/about`: app overview
+- `/login`: simple auth login screen (when USER_NAME / USER_PASS are set)
 
 ## Shared Features
 
 - Language switcher (Japanese / English)
 - Health checks via `/api/health`
+- Simple login when USER_NAME / USER_PASS are configured

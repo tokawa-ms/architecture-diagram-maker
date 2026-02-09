@@ -9,8 +9,8 @@ Architecture Diagram Maker is a lightweight editor for drafting architecture dia
 ## Core Components
 
 - Next.js (App Router, TypeScript)
-  - Pages: `/`, `/editor`, `/items`, `/history`, `/settings`, `/about`
-  - API: `/api/health`, `/api/icons`, `/api/diagrams`
+  - Pages: `/`, `/editor`, `/items`, `/history`, `/settings`, `/about`, `/login` (simple auth)
+  - API: `/api/health`, `/api/icons`, `/api/diagrams`, `/api/auth/login`, `/api/auth/logout`
 - UI Components
   - Header/footer, tool panels, palette, inspector, and more
 - Data Layer
@@ -47,10 +47,12 @@ Architecture Diagram Maker is a lightweight editor for drafting architecture dia
 - `ICONS_SAMPLE_ENABLED`: show `public/icons-sample` in the palette
 - `NEXT_PUBLIC_HISTORY_LIMIT`: default history retention
 - `NEXT_PUBLIC_EXPORT_SCALE`: default PNG export scale
+- `USER_NAME` / `USER_PASS`: simple auth credentials (optional)
 - Cosmos DB env vars are optional and only needed for cloud persistence
 
 ## Security and Auth
 
+- When USER_NAME / USER_PASS are set, simple login is enabled and auth cookies are issued via `/login` and `/api/auth/*`
 - Local dev uses Azure CLI (`az login`) via AAD
 - Production uses managed identity on Azure Container Apps
 - No secrets or connection strings are embedded in code
