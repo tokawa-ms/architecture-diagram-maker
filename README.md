@@ -6,6 +6,7 @@
 [![Node.js](https://img.shields.io/badge/Node.js-20%2B-339933.svg)](https://nodejs.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-App%20Router-black.svg)](https://nextjs.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-Enabled-38bdf8.svg)](https://tailwindcss.com/)
+[![Microsoft Entra ID](https://img.shields.io/badge/Microsoft%20Entra%20ID-MSAL-0067b8.svg)](https://learn.microsoft.com/entra/)
 
 アーキテクチャダイアグラムを素早く作成し、JSON で保存できる軽量エディターです。ローカル保存に加えて Azure Cosmos DB を有効化するとクラウド保存も利用できます。
 
@@ -39,6 +40,7 @@
 - 履歴スナップショットの自動保存と復元
 - 設定画面で履歴保持件数と PNG エクスポート倍率を調整
 - 簡易ログイン (USER_NAME / USER_PASS 設定時)
+- Microsoft Entra ID (MSAL) 認証 (任意)
 
 ## ドキュメント
 
@@ -98,8 +100,12 @@ npm run dev
 - ICONS_SAMPLE_ENABLED: サンプルアイコン表示切り替え
 - USER_NAME: 簡易認証ユーザー名
 - USER_PASS: 簡易認証パスワード
+- NEXT_PUBLIC_AZURE_AD_CLIENT_ID: Entra ID アプリのクライアント ID
+- NEXT_PUBLIC_AZURE_AD_TENANT_ID: Entra ID テナント ID
+- NEXT_PUBLIC_AZURE_AD_REDIRECT_URI: MSAL リダイレクト URI
 
 USER_NAME と USER_PASS を設定すると `/login` のログイン画面が有効になり、認証なしでは画面/API にアクセスできません。
+NEXT_PUBLIC_AZURE_AD_* を設定すると Microsoft Entra ID (MSAL) 認証が有効になり、簡易認証より優先されます。
 
 ## Docker
 
