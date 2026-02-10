@@ -2,6 +2,8 @@ export type DiagramElementType = "icon" | "box" | "text" | "arrow" | "line";
 
 export type ArrowStyle = "solid" | "dashed";
 
+export type BoxBorderStyle = "solid" | "dashed";
+
 export type ArrowEnds = "none" | "start" | "end" | "both";
 
 export interface DiagramLinePoint {
@@ -34,6 +36,7 @@ export interface DiagramBoxElement extends DiagramElementBase {
   fill: string;
   border: string;
   borderWidth: number;
+  borderStyle?: BoxBorderStyle;
   radius: number;
   label?: string;
   labelAlignX?: "left" | "center" | "right";

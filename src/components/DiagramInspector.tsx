@@ -36,6 +36,7 @@ interface DiagramInspectorProps {
     alignRight: string;
     alignTop: string;
     alignBottom: string;
+    transparentLabel: string;
   };
   onUpdate: (updates: Partial<DiagramElement>) => void;
 }
@@ -197,16 +198,94 @@ export default function DiagramInspector({
         )}
         {selected.type === "box" && (
           <div className="grid gap-3">
-            <ColorInput
-              label={labels.propertyFill}
-              value={selected.fill}
-              onChange={(value) => onUpdate({ fill: value })}
-            />
-            <ColorInput
-              label={labels.propertyBorder}
-              value={selected.border}
-              onChange={(value) => onUpdate({ border: value })}
-            />
+            {/* Fill color */}
+            <div className="flex flex-col gap-1 text-xs text-slate-500">
+              <span className="font-medium text-slate-700">
+                {labels.propertyFill}
+              </span>
+              <div className="flex items-center gap-2">
+                {selected.fill === "transparent" ? (
+                  <div
+                    className="h-9 flex-1 rounded-md border border-slate-200"
+                    style={{
+                      backgroundImage:
+                        "linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)",
+                      backgroundSize: "16px 16px",
+                      backgroundPosition: "0 0, 0 8px, 8px -8px, -8px 0",
+                    }}
+                  />
+                ) : (
+                  <input
+                    type="color"
+                    className="h-9 flex-1 rounded-md border border-slate-200"
+                    value={selected.fill}
+                    onChange={(e) => onUpdate({ fill: e.target.value })}
+                  />
+                )}
+                <button
+                  type="button"
+                  className={`h-9 shrink-0 rounded-md border px-2 text-[10px] font-semibold whitespace-nowrap ${
+                    selected.fill === "transparent"
+                      ? "border-sky-400 bg-sky-100 text-sky-700"
+                      : "border-slate-200 bg-white text-slate-500 hover:border-sky-300"
+                  }`}
+                  onClick={() =>
+                    onUpdate({
+                      fill:
+                        selected.fill === "transparent"
+                          ? "#F8FAFC"
+                          : "transparent",
+                    })
+                  }
+                >
+                  {labels.transparentLabel}
+                </button>
+              </div>
+            </div>
+            {/* Border color */}
+            <div className="flex flex-col gap-1 text-xs text-slate-500">
+              <span className="font-medium text-slate-700">
+                {labels.propertyBorder}
+              </span>
+              <div className="flex items-center gap-2">
+                {selected.border === "transparent" ? (
+                  <div
+                    className="h-9 flex-1 rounded-md border border-slate-200"
+                    style={{
+                      backgroundImage:
+                        "linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)",
+                      backgroundSize: "16px 16px",
+                      backgroundPosition: "0 0, 0 8px, 8px -8px, -8px 0",
+                    }}
+                  />
+                ) : (
+                  <input
+                    type="color"
+                    className="h-9 flex-1 rounded-md border border-slate-200"
+                    value={selected.border}
+                    onChange={(e) => onUpdate({ border: e.target.value })}
+                  />
+                )}
+                <button
+                  type="button"
+                  className={`h-9 shrink-0 rounded-md border px-2 text-[10px] font-semibold whitespace-nowrap ${
+                    selected.border === "transparent"
+                      ? "border-sky-400 bg-sky-100 text-sky-700"
+                      : "border-slate-200 bg-white text-slate-500 hover:border-sky-300"
+                  }`}
+                  onClick={() =>
+                    onUpdate({
+                      border:
+                        selected.border === "transparent"
+                          ? "#CBD5F5"
+                          : "transparent",
+                    })
+                  }
+                >
+                  {labels.transparentLabel}
+                </button>
+              </div>
+            </div>
             <NumberInput
               label={labels.propertyRadius}
               value={selected.radius}

@@ -60,10 +60,11 @@ const getElementStyle = (element: DiagramElement) => {
   };
 
   if (element.type === "box") {
+    const borderStyleValue = element.borderStyle === "dashed" ? "dashed" : "solid";
     return {
       ...base,
       backgroundColor: element.fill,
-      border: `${element.borderWidth}px solid ${element.border}`,
+      border: `${element.borderWidth}px ${borderStyleValue} ${element.border}`,
       borderRadius: element.radius,
     };
   }
@@ -1428,7 +1429,7 @@ export default function DiagramCanvas({
             width: previewRect.width,
             height: previewRect.height,
             backgroundColor: "#F8FAFC",
-            border: "2px solid #CBD5F5",
+            border: `2px ${activeTool.style === "dashed" ? "dashed" : "solid"} #CBD5F5`,
             borderRadius: 12,
           }}
         >
