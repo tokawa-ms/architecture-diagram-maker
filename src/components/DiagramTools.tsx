@@ -15,6 +15,7 @@ interface DiagramToolsProps {
     title: string;
     toolMoveResize: string;
     toolBox: string;
+    toolBoxDashed: string;
     toolText: string;
     toolLineSolid: string;
     toolLineDashed: string;
@@ -134,7 +135,15 @@ export default function DiagramTools({
             >
               {labels.toolMoveResize}
             </button>
-            <div aria-hidden="true" />
+            <button
+              type="button"
+              className={`${baseButtonClass} ${
+                isActive("text") ? activeButtonClass : ""
+              }`}
+              onClick={() => onAddElement("text")}
+            >
+              {labels.toolText}
+            </button>
             <button
               type="button"
               className={`${baseButtonClass} ${
@@ -147,11 +156,11 @@ export default function DiagramTools({
             <button
               type="button"
               className={`${baseButtonClass} ${
-                isActive("text") ? activeButtonClass : ""
+                isActive("box", "dashed") ? activeButtonClass : ""
               }`}
-              onClick={() => onAddElement("text")}
+              onClick={() => onAddElement("box", "dashed")}
             >
-              {labels.toolText}
+              {labels.toolBoxDashed}
             </button>
             <button
               type="button"
@@ -383,21 +392,29 @@ export default function DiagramTools({
           <button
             type="button"
             className={`${baseButtonClass} ${
+              isActive("text") ? activeButtonClass : ""
+            }`}
+            onClick={() => onAddElement("text")}
+          >
+            {labels.toolText}
+          </button>
+          <button
+            type="button"
+            className={`${baseButtonClass} ${
               isActive("box") ? activeButtonClass : ""
             }`}
             onClick={() => onAddElement("box")}
           >
             {labels.toolBox}
           </button>
-          <div aria-hidden="true" />
           <button
             type="button"
             className={`${baseButtonClass} ${
-              isActive("text") ? activeButtonClass : ""
+              isActive("box", "dashed") ? activeButtonClass : ""
             }`}
-            onClick={() => onAddElement("text")}
+            onClick={() => onAddElement("box", "dashed")}
           >
-            {labels.toolText}
+            {labels.toolBoxDashed}
           </button>
         </div>
 

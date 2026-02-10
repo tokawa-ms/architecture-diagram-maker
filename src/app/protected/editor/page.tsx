@@ -16,6 +16,7 @@ import { getMessages } from "@/lib/i18n";
 import type {
   ArrowEnds,
   ArrowStyle,
+  BoxBorderStyle,
   DiagramArrowElement,
   DiagramElement,
   DiagramElementType,
@@ -203,6 +204,7 @@ const createElement = (
   style?: ArrowStyle,
   arrowEnds?: ArrowEnds,
   lineMode?: "straight" | "polyline",
+  boxBorderStyle?: BoxBorderStyle,
 ): DiagramElement => {
   const base = {
     id: `${type}-${Date.now()}`,
@@ -223,6 +225,7 @@ const createElement = (
         fill: "#F8FAFC",
         border: "#CBD5F5",
         borderWidth: 2,
+        borderStyle: boxBorderStyle ?? "solid",
         radius: 12,
         label: labels.box,
         labelAlignX: "left",
@@ -322,6 +325,7 @@ const createElementFromDrag = (args: {
   endX: number;
   endY: number;
   points?: DiagramLinePoint[];
+  boxBorderStyle?: BoxBorderStyle;
 }): DiagramElement => {
   const base = {
     id: `${args.type}-${Date.now()}`,
@@ -412,6 +416,7 @@ const createElementFromDrag = (args: {
       fill: "#F8FAFC",
       border: "#CBD5F5",
       borderWidth: 2,
+      borderStyle: args.boxBorderStyle ?? "solid",
       radius: 12,
       label: args.labels.box,
     } as DiagramElement;
@@ -517,6 +522,15 @@ export default function EditorPage() {
   );
   const hasLineSelection = selectedLineElements.length > 0;
 
+  const selectedBoxElements = useMemo(
+    () =>
+      selectedElements.filter(
+        (element) => element.type === "box",
+      ) as Array<Extract<DiagramElement, { type: "box" }>>,
+    [selectedElements],
+  );
+  const hasBoxSelection = selectedBoxElements.length > 0;
+
   const resolveArrowEnds = (element: DiagramElement): ArrowEnds => {
     const arrowConfig = (element as { arrowEnds?: ArrowEnds }).arrowEnds;
     if (arrowConfig) return arrowConfig;
@@ -552,6 +566,21 @@ export default function EditorPage() {
     return ends === "end" || ends === "both";
   });
 
+  const commonBoxBorderStyle = getCommonValue(
+    selectedBoxElements,
+    (element) => (element.borderStyle ?? "solid") as BoxBorderStyle,
+  );
+
+  const commonBoxFillTransparent = getCommonValue(
+    selectedBoxElements,
+    (element) => element.fill === "transparent",
+  );
+
+  const commonBoxBorderTransparent = getCommonValue(
+    selectedBoxElements,
+    (element) => element.border === "transparent",
+  );
+
   const inspectorLabels = useMemo(
     () => ({
       title: messages.panelPropertiesTitle,
@@ -583,6 +612,7 @@ export default function EditorPage() {
       alignRight: messages.alignRight,
       alignTop: messages.alignTop,
       alignBottom: messages.alignBottom,
+      transparentLabel: messages.inspectorTransparent,
     }),
     [messages],
   );
@@ -884,6 +914,23 @@ export default function EditorPage() {
     );
   };
 
+  const updateSelectedBoxElements = (
+    updater: (
+      element: Extract<DiagramElement, { type: "box" }>,
+    ) => Partial<Extract<DiagramElement, { type: "box" }>>,
+  ) => {
+    if (selectedBoxElements.length === 0) return;
+    recordHistory();
+    updateElements((elements) =>
+      elements.map((element) => {
+        if (!selectedIds.includes(element.id)) return element;
+        if (element.type !== "box") return element;
+        const updates = updater(element);
+        return { ...element, ...updates } as DiagramElement;
+      }),
+    );
+  };
+
   useEffect(() => {
     setSelectedIds((prev) => {
       const next = prev.filter((id) =>
@@ -950,6 +997,7 @@ export default function EditorPage() {
       endX: args.endX,
       endY: args.endY,
       points: args.points,
+      boxBorderStyle: args.type === "box" ? (args.style as BoxBorderStyle | undefined) ?? "solid" : undefined,
     });
     const nextElement: DiagramElement = {
       ...element,
@@ -1717,6 +1765,7 @@ export default function EditorPage() {
                     title: messages.panelToolsTitle,
                     toolMoveResize: messages.toolMoveResize,
                     toolBox: messages.toolBox,
+                    toolBoxDashed: messages.toolBoxDashed,
                     toolText: messages.toolText,
                     toolLineSolid: messages.toolLineSolid,
                     toolLineDashed: messages.toolLineDashed,
@@ -1912,12 +1961,6 @@ export default function EditorPage() {
                   {messages.panelPropertiesTitle}
                 </span>
               </div>
-              {selectedElement && (
-                <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
-                  <span className="font-semibold text-slate-700">ID:</span>{" "}
-                  <span className="break-all">{selectedElement.id}</span>
-                </div>
-              )}
               <div className="mb-2 grid grid-cols-3 gap-2">
                 <button
                   type="button"
@@ -2058,6 +2101,47 @@ export default function EditorPage() {
                   handleUpdateElement(selectedElement.id, updates);
                 }}
               />
+              {hasBoxSelection && (
+                <div className="mt-3 grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2">
+                  <div className="text-[11px] font-semibold text-slate-500">
+                    {messages.contextBoxBorderStyle}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      className={`${toggleButtonBase} ${
+                        commonBoxBorderStyle === "solid"
+                          ? toggleButtonActive
+                          : toggleButtonInactive
+                      }`}
+                      onClick={() =>
+                        updateSelectedBoxElements(() => ({ borderStyle: "solid" as const }))
+                      }
+                    >
+                      {messages.contextBoxBorderSolid}
+                    </button>
+                    <button
+                      type="button"
+                      className={`${toggleButtonBase} ${
+                        commonBoxBorderStyle === "dashed"
+                          ? toggleButtonActive
+                          : toggleButtonInactive
+                      }`}
+                      onClick={() =>
+                        updateSelectedBoxElements(() => ({ borderStyle: "dashed" as const }))
+                      }
+                    >
+                      {messages.contextBoxBorderDashed}
+                    </button>
+                  </div>
+                </div>
+              )}
+              {selectedElement && (
+                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
+                  <span className="font-semibold text-slate-700">ID:</span>{" "}
+                  <span className="break-all">{selectedElement.id}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
