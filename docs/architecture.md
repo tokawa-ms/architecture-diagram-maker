@@ -9,8 +9,8 @@ Architecture Diagram Maker は、アーキテクチャ図を素早く作成し�
 ## 主要コンポーネント
 
 - Next.js (App Router, TypeScript)
-  - 画面: `/`, `/editor`, `/items`, `/history`, `/settings`, `/about`, `/login` (簡易認証時)
-  - API: `/api/health`, `/api/icons`, `/api/diagrams`, `/api/auth/login`, `/api/auth/logout`
+  - 画面: `/`, `/editor`, `/items`, `/history`, `/settings`, `/about`, `/account` (MSAL), `/login` (簡易認証時)
+  - API: `/api/health`, `/api/icons`, `/api/diagrams`, `/api/diagnostics`, `/api/auth/login`, `/api/auth/logout`
 - UI コンポーネント
   - ヘッダー/フッター、ツールパネル、パレット、インスペクターなど
 - データ層

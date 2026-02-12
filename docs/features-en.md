@@ -28,6 +28,7 @@
 - `/history`: local history list and restore
 - `/settings`: history retention and PNG export scale settings
 - `/about`: app overview
+- `/account`: MSAL account details (when MSAL is enabled)
 - `/login`: simple auth login screen (when USER_NAME / USER_PASS are set)
 
 ## Shared Features

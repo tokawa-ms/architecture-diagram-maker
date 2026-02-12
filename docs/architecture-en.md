@@ -9,8 +9,8 @@ Architecture Diagram Maker is a lightweight editor for drafting architecture dia
 ## Core Components
 
 - Next.js (App Router, TypeScript)
-  - Pages: `/`, `/editor`, `/items`, `/history`, `/settings`, `/about`, `/login` (simple auth)
-  - API: `/api/health`, `/api/icons`, `/api/diagrams`, `/api/auth/login`, `/api/auth/logout`
+  - Pages: `/`, `/editor`, `/items`, `/history`, `/settings`, `/about`, `/account` (MSAL), `/login` (simple auth)
+  - API: `/api/health`, `/api/icons`, `/api/diagrams`, `/api/diagnostics`, `/api/auth/login`, `/api/auth/logout`
 - UI Components
   - Header/footer, tool panels, palette, inspector, and more
 - Data Layer
