@@ -127,8 +127,8 @@ export default function DiagramStoragePanel({
 
   const buildNewId = () => {
     const trimmed = idPrefix?.trim();
-    const suffix = Date.now();
-    return trimmed ? `${trimmed}-${suffix}` : `${suffix}`;
+    const uuid = crypto.randomUUID();
+    return trimmed ? `${trimmed}-${uuid}` : uuid;
   };
 
   const handleSave = async (overwrite: boolean) => {

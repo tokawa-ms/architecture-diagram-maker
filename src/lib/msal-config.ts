@@ -3,23 +3,28 @@ import {
   type Configuration,
   LogLevel,
 } from "@azure/msal-browser";
+import { getRuntimeConfigValue } from "@/lib/runtime-config";
 
 /**
  * Returns true when the required MSAL environment variables are set.
- * Because the variables use the NEXT_PUBLIC_ prefix they are available both
- * on the server and the client.
+ *
+ * On the server, reads process.env directly.
+ * On the client, reads window.__RUNTIME_CONFIG__ (injected by layout.tsx)
+ * so that values set only at container runtime (not at build time) are
+ * correctly detected.
  */
 export const isMsalConfigured = () =>
   Boolean(
-    process.env.NEXT_PUBLIC_AZURE_AD_CLIENT_ID &&
-      process.env.NEXT_PUBLIC_AZURE_AD_TENANT_ID,
+    getRuntimeConfigValue("NEXT_PUBLIC_AZURE_AD_CLIENT_ID") &&
+      getRuntimeConfigValue("NEXT_PUBLIC_AZURE_AD_TENANT_ID"),
   );
 
 const buildMsalConfig = (): Configuration => {
-  const clientId = process.env.NEXT_PUBLIC_AZURE_AD_CLIENT_ID ?? "";
-  const tenantId = process.env.NEXT_PUBLIC_AZURE_AD_TENANT_ID ?? "";
+  const clientId = getRuntimeConfigValue("NEXT_PUBLIC_AZURE_AD_CLIENT_ID");
+  const tenantId = getRuntimeConfigValue("NEXT_PUBLIC_AZURE_AD_TENANT_ID");
   const redirectUri =
-    process.env.NEXT_PUBLIC_AZURE_AD_REDIRECT_URI ?? "http://localhost:3000";
+    getRuntimeConfigValue("NEXT_PUBLIC_AZURE_AD_REDIRECT_URI") ||
+    "http://localhost:3000";
 
   return {
     auth: {
