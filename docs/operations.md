@@ -43,6 +43,7 @@
   - `NEXT_PUBLIC_AZURE_AD_TENANT_ID`
   - `NEXT_PUBLIC_AZURE_AD_REDIRECT_URI`
 - MSAL が有効な場合は `/api/diagrams` へ ID トークンが送信され、メールアドレス単位で Cosmos DB のデータが分離される
+- MSAL 有効時は `/account` でアカウント情報を確認できる
 
 ## Azure Container Apps でのホスト手順 (詳細)
 
@@ -88,5 +89,6 @@
 ## トラブルシューティング
 
 - Cosmos DB 接続エラー時はサーバーログの `diagnostics` を確認
+- Cosmos DB の接続確認は GET `/api/diagnostics`
 - 429 が発生する場合は RU を引き上げるか保存頻度を調整
 - API から 501 が返る場合は Cosmos DB の環境変数が未設定

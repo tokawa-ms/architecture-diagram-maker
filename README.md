@@ -41,6 +41,7 @@
 - 設定画面で履歴保持件数と PNG エクスポート倍率を調整
 - 簡易ログイン (USER_NAME / USER_PASS 設定時)
 - Microsoft Entra ID (MSAL) 認証 (任意)
+- MSAL アカウント情報ページ (/account, MSAL 有効時)
 
 ## ドキュメント
 
@@ -131,6 +132,7 @@ docker run --rm -p 3000:3000 -e PORT=3000 architecture-diagram-maker
 ## Azure Cosmos DB 連携
 
 /api/diagrams で Azure Cosmos DB への保存・復元に対応しています。環境変数を設定しない場合はローカルストレージにフォールバックします。
+Cosmos DB の接続確認用に GET /api/diagnostics を提供します。
 
 ### Cosmos DB 設定
 

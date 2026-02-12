@@ -43,6 +43,7 @@
   - `NEXT_PUBLIC_AZURE_AD_TENANT_ID`
   - `NEXT_PUBLIC_AZURE_AD_REDIRECT_URI`
 - When MSAL is enabled, `/api/diagrams` receives an ID token and isolates Cosmos DB data per email
+- When MSAL is enabled, `/account` shows account details
 
 ## Hosting on Azure Container Apps (detailed)
 
@@ -88,5 +89,6 @@
 ## Troubleshooting
 
 - Check server logs and `diagnostics` for Cosmos DB failures
+- Use GET `/api/diagnostics` to verify Cosmos DB connectivity
 - For 429 errors, increase RU or reduce write frequency
 - A 501 response from the API indicates Cosmos DB is not configured

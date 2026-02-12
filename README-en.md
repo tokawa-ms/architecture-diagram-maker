@@ -41,6 +41,7 @@ A lightweight editor for quickly drafting architecture diagrams and saving them 
 - Configure history retention and PNG export scale in settings
 - Simple login screen when USER_NAME / USER_PASS are set
 - Microsoft Entra ID (MSAL) authentication (optional)
+- MSAL account information page (/account when MSAL is enabled)
 
 ## Docs
 
@@ -131,6 +132,7 @@ Minimal expectations:
 ## Azure Cosmos DB Integration
 
 The /api/diagrams route supports Azure Cosmos DB persistence. If the environment variables are not set, it falls back to local storage.
+Use GET /api/diagnostics to verify Cosmos DB connectivity.
 
 ### Cosmos DB setup
 
