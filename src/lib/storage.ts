@@ -9,12 +9,23 @@ import {
   serializeDiagram,
   toStoredSummary,
 } from "./diagram-serialization";
+import { isMsalConfigured, getMsalInstance, loginRequest } from "./msal-config";
 
 const STORAGE_INDEX_KEY = "architecture-diagram:index";
 const STORAGE_PREFIX = "architecture-diagram:doc:";
 const STORAGE_DRAFT_KEY = "architecture-diagram:draft";
 const HISTORY_INDEX_KEY = "architecture-diagram:history:index";
 const HISTORY_ENTRY_PREFIX = "architecture-diagram:history:entry:";
+
+export type StorageTarget = "cloud" | "local";
+
+let currentStorageTarget: StorageTarget = "local";
+
+const setStorageTarget = (target: StorageTarget) => {
+  currentStorageTarget = target;
+};
+
+export const getStorageTarget = () => currentStorageTarget;
 
 /**
  * Build a user-scoped storage key prefix.
@@ -263,11 +274,35 @@ const deleteDiagramLocal = (id: string) => {
   writeIndex(readIndex().filter((item) => item.id !== id));
 };
 
+/**
+ * Acquire a fresh MSAL ID token on-demand.
+ * This avoids race conditions with React effect timing.
+ */
+const acquireMsalIdToken = async (): Promise<string | null> => {
+  if (!isMsalConfigured()) return null;
+  const instance = getMsalInstance();
+  if (!instance) return null;
+  const account = instance.getActiveAccount() ?? instance.getAllAccounts()[0];
+  if (!account) return null;
+  try {
+    const result = await instance.acquireTokenSilent({
+      ...loginRequest,
+      account,
+    });
+    return result?.idToken ?? null;
+  } catch (error) {
+    console.warn("[Storage] Failed to acquire MSAL token for API call", error);
+    return null;
+  }
+};
+
 const fetchApi = async <T>(input: RequestInfo, init?: RequestInit) => {
   try {
     const headers = new Headers(init?.headers);
-    if (currentMsalIdToken) {
-      headers.set("Authorization", `Bearer ${currentMsalIdToken}`);
+    // Acquire token on-demand — no dependency on React effect timing.
+    const token = await acquireMsalIdToken() ?? currentMsalIdToken;
+    if (token) {
+      headers.set("Authorization", `Bearer ${token}`);
     }
     const response = await fetch(input, { ...init, headers });
     if (!response.ok) {
@@ -288,10 +323,12 @@ export const listStoredDiagrams = async (): Promise<StoredDiagramSummary[]> => {
     "/api/diagrams",
   );
   if (response?.items && Array.isArray(response.items)) {
+    setStorageTarget("cloud");
     return response.items.sort((a, b) =>
       new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
     );
   }
+  setStorageTarget("local");
   return listStoredDiagramsLocal();
 };
 
@@ -306,8 +343,10 @@ export const saveDiagram = async (document: DiagramDocument) => {
     body: JSON.stringify({ document: payload }),
   });
   if (response?.ok) {
+    setStorageTarget("cloud");
     return;
   }
+  setStorageTarget("local");
   saveDiagramLocal(document);
 };
 
@@ -319,8 +358,10 @@ export const loadDiagram = async (id: string): Promise<DiagramDocument | null> =
     `/api/diagrams?id=${encodeURIComponent(id)}`,
   );
   if (response?.document && isDiagramDocument(response.document)) {
+    setStorageTarget("cloud");
     return normalizeDiagramDocument(response.document);
   }
+  setStorageTarget("local");
   return loadDiagramLocal(id);
 };
 
@@ -333,8 +374,10 @@ export const deleteDiagram = async (id: string) => {
     { method: "DELETE" },
   );
   if (response?.ok) {
+    setStorageTarget("cloud");
     return;
   }
+  setStorageTarget("local");
   deleteDiagramLocal(id);
 };
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import MsalAuthGuard from "@/components/MsalAuthGuard";
@@ -23,6 +23,19 @@ type SettingsSnapshot = {
   historyLimit: number;
   exportScale: number;
 };
+
+type DiagnosticsPayload = {
+  cosmos: {
+    configured: boolean;
+    status: "not_configured" | "connected" | "error";
+    message?: string;
+  };
+};
+
+type DiagnosticsState =
+  | { status: "loading" }
+  | { status: "error"; message: string }
+  | { status: "ready"; payload: DiagnosticsPayload };
 
 const readSettingsSnapshot = (): SettingsSnapshot => ({
   historyLimit: getHistoryLimit(),
@@ -97,13 +110,25 @@ const settingsStore = (() => {
 export default function SettingsPage() {
   const language = useLanguage();
   const messages = getMessages(language);
-  const { msalEnabled, email: msalEmail, displayName: msalDisplayName, logout: msalLogout } = useMsalAuth();
+  const {
+    msalEnabled,
+    isAuthenticated: msalAuthenticated,
+    inProgress: msalInProgress,
+    email: msalEmail,
+    displayName: msalDisplayName,
+    logout: msalLogout,
+  } = useMsalAuth();
   const simpleAuthLoggedIn = useSimpleAuthLoggedIn();
+  const simpleAuthEnabled =
+    process.env.NEXT_PUBLIC_SIMPLE_AUTH_ENABLED === "true";
   const { historyLimit, exportScale } = useSyncExternalStore(
     settingsStore.subscribe,
     settingsStore.getSnapshot,
     settingsStore.getServerSnapshot,
   );
+  const [diagnostics, setDiagnostics] = useState<DiagnosticsState>({
+    status: "loading",
+  });
   const navItems = [
     { href: "/", label: messages.navHome },
     { href: "/editor", label: messages.navEditor },
@@ -120,6 +145,109 @@ export default function SettingsPage() {
   const handleExportScaleChange = (value: number) => {
     settingsStore.setExportScaleValue(value);
   };
+
+  useEffect(() => {
+    let active = true;
+    const loadDiagnostics = async () => {
+      try {
+        const response = await fetch("/api/diagnostics", {
+          cache: "no-store",
+        });
+        if (!response.ok) {
+          throw new Error(messages.diagnosticsError);
+        }
+        const payload = (await response.json()) as DiagnosticsPayload;
+        if (active) {
+          setDiagnostics({ status: "ready", payload });
+        }
+      } catch (error) {
+        console.error("Failed to load diagnostics", error);
+        if (active) {
+          setDiagnostics({
+            status: "error",
+            message: messages.diagnosticsError,
+          });
+        }
+      }
+    };
+
+    void loadDiagnostics();
+    return () => {
+      active = false;
+    };
+  }, [messages.diagnosticsError]);
+
+  const cosmosStatusLabel = useMemo(() => {
+    if (diagnostics.status === "loading") return messages.diagnosticsLoading;
+    if (diagnostics.status === "error") return messages.diagnosticsError;
+    const status = diagnostics.payload.cosmos.status;
+    if (status === "connected") return messages.diagnosticsCosmosConnected;
+    if (status === "error") return messages.diagnosticsCosmosError;
+    return messages.diagnosticsCosmosNotConfigured;
+  }, [diagnostics, messages]);
+
+  const cosmosDetail = useMemo(() => {
+    if (diagnostics.status === "loading") return messages.diagnosticsLoading;
+    if (diagnostics.status === "error") return diagnostics.message;
+    if (!diagnostics.payload.cosmos.configured) {
+      return messages.diagnosticsCosmosConfigMissing;
+    }
+    if (diagnostics.payload.cosmos.status === "error") {
+      const suffix = diagnostics.payload.cosmos.message
+        ? ` (${diagnostics.payload.cosmos.message})`
+        : "";
+      return `${messages.diagnosticsCosmosErrorDetail}${suffix}`;
+    }
+    return messages.diagnosticsCosmosReady;
+  }, [diagnostics, messages]);
+
+  const authMethodLabel = useMemo(() => {
+    if (msalEnabled) return messages.diagnosticsAuthEntra;
+    if (simpleAuthEnabled) return messages.diagnosticsAuthSimple;
+    return messages.diagnosticsAuthNone;
+  }, [messages, msalEnabled, simpleAuthEnabled]);
+
+  const authStatusLabel = useMemo(() => {
+    if (msalEnabled) {
+      if (msalInProgress) return messages.diagnosticsAuthChecking;
+      return msalAuthenticated
+        ? messages.diagnosticsAuthSignedIn
+        : messages.diagnosticsAuthSignedOut;
+    }
+    if (simpleAuthEnabled) {
+      return simpleAuthLoggedIn
+        ? messages.diagnosticsAuthSignedIn
+        : messages.diagnosticsAuthSignedOut;
+    }
+    return messages.diagnosticsAuthUnavailable;
+  }, [
+    messages,
+    msalEnabled,
+    msalAuthenticated,
+    msalInProgress,
+    simpleAuthEnabled,
+    simpleAuthLoggedIn,
+  ]);
+
+  const authDetail = useMemo(() => {
+    if (msalEnabled) {
+      return msalEmail
+        ? `${messages.diagnosticsAuthUserPrefix} ${msalEmail}`
+        : messages.diagnosticsAuthNoUser;
+    }
+    if (simpleAuthEnabled) {
+      return simpleAuthLoggedIn
+        ? messages.diagnosticsAuthSimpleLoggedIn
+        : messages.diagnosticsAuthSimpleLoggedOut;
+    }
+    return messages.diagnosticsAuthNoneDetail;
+  }, [
+    messages,
+    msalEnabled,
+    msalEmail,
+    simpleAuthEnabled,
+    simpleAuthLoggedIn,
+  ]);
 
   return (
     <MsalAuthGuard>
@@ -194,6 +322,35 @@ export default function SettingsPage() {
                 {messages.exportScaleHint}
               </span>
             </label>
+          </div>
+          <div className="rounded-3xl bg-white p-8 shadow-sm">
+            <h2 className="text-lg font-semibold text-slate-900">
+              {messages.diagnosticsTitle}
+            </h2>
+            <p className="mt-2 text-sm text-slate-500">
+              {messages.diagnosticsBody}
+            </p>
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  {messages.diagnosticsCosmosLabel}
+                </p>
+                <p className="mt-2 text-base font-semibold text-slate-900">
+                  {cosmosStatusLabel}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">{cosmosDetail}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  {messages.diagnosticsAuthLabel}
+                </p>
+                <p className="mt-2 text-base font-semibold text-slate-900">
+                  {authMethodLabel}
+                </p>
+                <p className="mt-1 text-sm text-slate-600">{authStatusLabel}</p>
+                <p className="mt-1 text-xs text-slate-500">{authDetail}</p>
+              </div>
+            </div>
           </div>
         </section>
       </main>

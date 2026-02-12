@@ -1910,6 +1910,9 @@ export default function EditorPage() {
                     storageKeyLabel: messages.storageKeyLabel,
                     storageSavedAt: messages.storageSavedAt,
                     storageActionLabel: messages.storageActionLabel,
+                    storageTargetLabel: messages.storageTargetLabel,
+                    storageTargetCloud: messages.storageTargetCloud,
+                    storageTargetLocal: messages.storageTargetLocal,
                     storageLoad: messages.storageLoad,
                     storageOverwrite: messages.storageOverwrite,
                     storageNew: messages.storageNew,
@@ -1919,6 +1922,7 @@ export default function EditorPage() {
                     storageExport: messages.storageExport,
                     storageCopy: messages.storageCopy,
                     storageCopied: messages.storageCopied,
+                    storageDownload: messages.storageDownload,
                     empty: messages.storageEmpty,
                   }}
                   current={diagram}
