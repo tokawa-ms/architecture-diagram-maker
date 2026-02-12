@@ -28,6 +28,7 @@
 - `/history` : ローカル履歴の一覧と復元
 - `/settings` : 履歴保持件数と PNG エクスポート倍率の設定
 - `/about` : アプリ概要
+- `/account` : MSAL アカウント情報 (MSAL 有効時)
 - `/login` : 簡易認証のログイン画面 (USER_NAME / USER_PASS 設定時)
 
 ## 共通機能
