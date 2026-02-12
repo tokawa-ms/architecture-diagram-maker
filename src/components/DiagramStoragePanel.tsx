@@ -5,10 +5,12 @@ import type { DiagramDocument, StoredDiagramSummary } from "@/lib/types";
 import {
   deleteDiagram,
   exportDiagramJson,
+  getStorageTarget,
   importDiagramJson,
   listStoredDiagrams,
   loadDiagram,
   saveDiagram,
+  type StorageTarget,
 } from "@/lib/storage";
 
 interface DiagramStoragePanelProps {
@@ -18,6 +20,9 @@ interface DiagramStoragePanelProps {
     storageKeyLabel: string;
     storageSavedAt: string;
     storageActionLabel: string;
+    storageTargetLabel: string;
+    storageTargetCloud: string;
+    storageTargetLocal: string;
     storageLoad: string;
     storageOverwrite: string;
     storageNew: string;
@@ -27,6 +32,7 @@ interface DiagramStoragePanelProps {
     storageExport: string;
     storageCopy: string;
     storageCopied: string;
+    storageDownload: string;
     empty: string;
   };
   current: DiagramDocument;
@@ -111,6 +117,13 @@ export default function DiagramStoragePanel({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [importFile, setImportFile] = useState<File | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
+  const [storageTarget, setStorageTarget] = useState<StorageTarget>(
+    getStorageTarget(),
+  );
+
+  useEffect(() => {
+    setStorageTarget(getStorageTarget());
+  }, [items, loading]);
 
   const buildNewId = () => {
     const trimmed = idPrefix?.trim();
@@ -127,6 +140,7 @@ export default function DiagramStoragePanel({
       createdAt: overwrite ? current.createdAt : now,
     };
     await saveDiagram(document);
+    setStorageTarget(getStorageTarget());
     if (!overwrite) {
       onLoad(document);
     }
@@ -144,6 +158,17 @@ export default function DiagramStoragePanel({
     }
   };
 
+  const handleDownload = () => {
+    const payload = exportDiagramJson(current);
+    const blob = new Blob([payload], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${current.name || current.id || "diagram"}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleImport = async () => {
     if (!importFile) {
       return;
@@ -155,6 +180,7 @@ export default function DiagramStoragePanel({
         return;
       }
       await saveDiagram(document);
+      setStorageTarget(getStorageTarget());
       await refresh();
       setImportFile(null);
       if (importInputRef.current) {
@@ -168,12 +194,23 @@ export default function DiagramStoragePanel({
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4">
-      <div className="flex items-start justify-between">
-        <div>
+      {/* ── Header: title / description / storage target / save buttons ── */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-slate-900">{title}</p>
           <p className="mt-1 text-xs text-slate-400">{hint}</p>
+          <div className="mt-2 flex items-center gap-2 text-[11px] font-semibold text-slate-500">
+            <span className="uppercase tracking-wide text-slate-400">
+              {labels.storageTargetLabel}
+            </span>
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-slate-600">
+              {storageTarget === "cloud"
+                ? labels.storageTargetCloud
+                : labels.storageTargetLocal}
+            </span>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex shrink-0 flex-wrap gap-2">
           <button
             type="button"
             className="rounded-md border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900"
@@ -190,16 +227,91 @@ export default function DiagramStoragePanel({
           </button>
         </div>
       </div>
+
+      {/* ── Saved data list ── */}
+      <div className="mt-4">
+        <div className="grid grid-cols-[1.4fr_1fr_auto] gap-2 text-xs font-semibold text-slate-400">
+          <span>{labels.storageKeyLabel}</span>
+          <span>{labels.storageSavedAt}</span>
+          <span>{labels.storageActionLabel}</span>
+        </div>
+        <div className="mt-2 grid gap-2 text-xs">
+          {!loading && items.length === 0 && (
+            <p className="text-xs text-slate-400">{labels.empty}</p>
+          )}
+          {items.map((item) => (
+            <div
+              key={item.id}
+              className="grid grid-cols-[1.4fr_1fr_auto] items-center gap-2 rounded-md border border-slate-200 px-2 py-2"
+            >
+              <span className="truncate text-slate-700">{item.name}</span>
+              <span className="text-slate-500">
+                {new Date(item.updatedAt).toLocaleString()}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-slate-600 hover:text-slate-900"
+                  onClick={async () => {
+                    const doc = await loadDiagram(item.id);
+                    if (doc) {
+                      setStorageTarget(getStorageTarget());
+                      console.log("Loading diagram from storage", item.id);
+                      onLoad(doc);
+                    }
+                  }}
+                >
+                  {labels.storageLoad}
+                </button>
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-rose-600 hover:text-rose-700"
+                  onClick={async () => {
+                    await deleteDiagram(item.id);
+                    setStorageTarget(getStorageTarget());
+                    console.log("Deleted diagram from storage", item.id);
+                    await refresh();
+                  }}
+                >
+                  {labels.storageDelete}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Save (current diagram) ── */}
+      <div className="mt-4 flex justify-center">
+        <button
+          type="button"
+          className="w-full max-w-xs rounded-md border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:text-slate-900"
+          onClick={() => handleSave(true)}
+        >
+          {labels.storageOverwrite}
+        </button>
+      </div>
+
+      {/* ── JSON Export / Import ── */}
       <div className="mt-4 flex flex-col gap-2 text-xs text-slate-500">
         <div className="flex items-center justify-between rounded-md border border-dashed border-slate-200 px-3 py-2">
           <span>{labels.storageExport}</span>
-          <button
-            type="button"
-            className="text-xs font-semibold text-slate-600 hover:text-slate-900"
-            onClick={handleCopy}
-          >
-            {copiedId ? labels.storageCopied : labels.storageCopy}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="rounded-md border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:bg-white hover:text-slate-900"
+              onClick={handleCopy}
+            >
+              {copiedId ? labels.storageCopied : labels.storageCopy}
+            </button>
+            <button
+              type="button"
+              className="rounded-md border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:bg-white hover:text-slate-900"
+              onClick={handleDownload}
+            >
+              {labels.storageDownload}
+            </button>
+          </div>
         </div>
         <div className="rounded-md border border-dashed border-slate-200 px-3 py-2">
           <label className="text-xs font-semibold text-slate-600">
@@ -229,55 +341,6 @@ export default function DiagramStoragePanel({
           >
             {labels.storageImport}
           </button>
-        </div>
-      </div>
-      <div className="mt-4">
-        <div className="grid grid-cols-[1.4fr_1fr_auto] gap-2 text-xs font-semibold text-slate-400">
-          <span>{labels.storageKeyLabel}</span>
-          <span>{labels.storageSavedAt}</span>
-          <span>{labels.storageActionLabel}</span>
-        </div>
-        <div className="mt-2 grid gap-2 text-xs">
-          {!loading && items.length === 0 && (
-            <p className="text-xs text-slate-400">{labels.empty}</p>
-          )}
-          {items.map((item) => (
-            <div
-              key={item.id}
-              className="grid grid-cols-[1.4fr_1fr_auto] items-center gap-2 rounded-md border border-slate-200 px-2 py-2"
-            >
-              <span className="truncate text-slate-700">{item.name}</span>
-              <span className="text-slate-500">
-                {new Date(item.updatedAt).toLocaleString()}
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  className="text-xs font-semibold text-slate-600 hover:text-slate-900"
-                  onClick={async () => {
-                    const doc = await loadDiagram(item.id);
-                    if (doc) {
-                      console.log("Loading diagram from storage", item.id);
-                      onLoad(doc);
-                    }
-                  }}
-                >
-                  {labels.storageLoad}
-                </button>
-                <button
-                  type="button"
-                  className="text-xs font-semibold text-rose-600 hover:text-rose-700"
-                  onClick={async () => {
-                    await deleteDiagram(item.id);
-                    console.log("Deleted diagram from storage", item.id);
-                    await refresh();
-                  }}
-                >
-                  {labels.storageDelete}
-                </button>
-              </div>
-            </div>
-          ))}
         </div>
       </div>
     </div>

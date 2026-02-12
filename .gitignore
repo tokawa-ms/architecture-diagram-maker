@@ -46,3 +46,5 @@ next-env.d.ts
 !/public/icons/.gitkeep
 !/public/icons/README.md
 
+# Local configuration script
+cosmosconfig.sh
