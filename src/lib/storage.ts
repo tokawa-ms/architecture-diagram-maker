@@ -390,7 +390,16 @@ export const importDiagramJson = (value: string): DiagramDocument | null => {
     if (!isDiagramDocument(parsed)) {
       return null;
     }
-    return normalizeDiagramDocument(parsed);
+    // Assign a new ID and timestamps to avoid overwriting existing diagrams
+    // when importing an exported JSON that shares the same ID.
+    const now = new Date().toISOString();
+    const newDoc: DiagramDocument = {
+      ...parsed,
+      id: `imported-${crypto.randomUUID()}`,
+      createdAt: now,
+      updatedAt: now,
+    };
+    return normalizeDiagramDocument(newDoc);
   } catch (error) {
     console.error("Failed to import diagram JSON", error);
     return null;
