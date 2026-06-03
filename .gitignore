@@ -48,3 +48,6 @@ next-env.d.ts
 
 # Local configuration script
 cosmosconfig.sh
+
+# Local canvas state
+.copilot-agent-kanban/
